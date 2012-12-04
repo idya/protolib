@@ -64,8 +64,9 @@
 		} while (obj);
 	}
 
-	SuperWrapper = {
+	SuperWrapper = objectCreate(Object.prototype, {
 		wrap: {
+			enumerable: true,
 			value: function(proto) {
 				var method;
 				method = this.method;
@@ -90,7 +91,7 @@
 				};
 			}
 		}
-	};
+	});
 	preventExtensions(SuperWrapper);
 
 	Interface = {};
@@ -125,9 +126,7 @@
 		defaultExtensible = opt(options.defaultExtensible, true);
 		return function(proto, members, extensible, ctorArgs) {
 			var props, key, m, o, desc, p, iface, ctor;
-			if (undefined === extensible) {
-				extensible = defaultExtensible;
-			}
+			extensible = opt(extensible, defaultExtensible);
 			props = {};
 			if ((!Object.getPrototypeOf) && (null == props.__proto__)) {
 				props.__proto__ = {
@@ -137,7 +136,13 @@
 			if (null != members) {
 				for (key in members) {
 					if (members.hasOwnProperty(key)) {
+						if (key === "__proto__") {
+							throw new Error("Invalid member key '" + key + "'"); // XXX
+						}
 						m = members[key];
+						if (SuperWrapper.isPrototypeOf(m)) {
+							m = m.wrap(proto);
+						}
 						if ((null == m) || ((typeof m) !== "object")) {
 							m = {
 								configurable: defaultConfigurable,
@@ -150,18 +155,16 @@
 							if (key === ctorName) {
 								m.enumerable = false;
 							} else if (null != isPublicFn) {
-								m.enumerable = isPublicFn(key, m);
+								m.enumerable = isPublicFn(key, m.value);
 							} else {
 								m.enumerable = defaultEnumerable;
 							}
-						} else if (SuperWrapper.isPrototypeOf(m)) {
-							m = m.wrap(proto);
 						}
 						props[key] = m;
 					}
 				}
 			}
-			o = objectCreate(this, props);
+			o = objectCreate(proto, props);
 			if (returnProxy) {
 				props = {};
 				if (Object.defineProperty) { // ES5
@@ -245,52 +248,61 @@
 		}
 	}
 
-	ex = {
+	ex = objectCreate(Object.prototype, {
 
 		// member variables: _destroyFns
 
-		constructor: function() {
-			var a, o, i, fn;
-			this._destroyFns = [];
-			a = [];
-			o = this;
-			for (;;) {
-				o = getPrototypeOf(o);
-				if (null == o) {
-					break;
-				}
-				a.push(o);
-			}
-			for (i = a.length - 1; i >= 0; i--) {
-				o = a[i];
-				if (o.hasOwnProperty("_dispose")) {
-					fn = o._dispose;
-					if ((typeof fn) === "function") {
-						this._addDestroyFn(fn);
+		constructor: {
+			enumerable: true,
+			value: function() {
+				var a, o, i, fn;
+				this._destroyFns = [];
+				a = [];
+				o = this;
+				for (;;) {
+					o = getPrototypeOf(o);
+					if (null == o) {
+						break;
 					}
+					a.push(o);
 				}
-				if (o.hasOwnProperty("_init")) {
-					fn = o._init;
-					if ((typeof fn) === "function") {
-						fn.apply(this, arguments);
+				for (i = a.length - 1; i >= 0; i--) {
+					o = a[i];
+					if (o.hasOwnProperty("_dispose")) {
+						fn = o._dispose;
+						if ((typeof fn) === "function") {
+							this._addDestroyFn(fn);
+						}
+					}
+					if (o.hasOwnProperty("_init")) {
+						fn = o._init;
+						if ((typeof fn) === "function") {
+							fn.apply(this, arguments);
+						}
 					}
 				}
 			}
 		},
 
-		_addDestroyFn: function _addDestroyFn(fn) {
-			this._destroyFns.push(fn);
+		_addDestroyFn: {
+			enumerable: true,
+			value: function _addDestroyFn(fn) {
+				this._destroyFns.push(fn);
+			}
 		},
 
-		destroy: function destroy() {
-			var i, dfns;
-			dfns = this._destroyFns;
-			for (i = dfns.length - 1; i >= 0; i--) {
-				dfns[i].call(this);
+		destroy: {
+			enumerable: true,
+			value: function destroy() {
+				var i, dfns;
+				dfns = this._destroyFns;
+				for (i = dfns.length - 1; i >= 0; i--) {
+					dfns[i].call(this);
+				}
+				delete this._destroyFns;
 			}
-			delete this._destroyFns;
 		}
-	};
+	});
 
 	// using the tools:
 
@@ -301,7 +313,7 @@
 		defaultExtensible: true
 	});
 	function create(proto, members, extensible) {
-		return _create(proto, members, extensible, null);
+		return _create(proto, members, extensible, undefined);
 	}
 
 	function ProtoCtor() {
@@ -314,7 +326,7 @@
 		defaultExtensible: false
 	});
 	protoInherit = function inherit(members, extensible) {
-		return _protoInherit(this, members, extensible, null);
+		return _protoInherit(this, members, extensible, undefined);
 	};
 
 	_protoCreate = createCreate({
@@ -324,7 +336,7 @@
 		defaultExtensible: true
 	});
 	protoCreate = function create(/* *args */) {
-		return _protoCreate(this, null, null, arguments);
+		return _protoCreate(this, undefined, undefined, arguments);
 	};
 
 	function hasPrototype(o) {
@@ -337,6 +349,7 @@
 		create: protoCreate,
 		hasPrototype: hasPrototype
 	});
+	ProtoCtor.prototype = Proto;
 
 	ProtoEx = Proto.inherit(ex);
 
@@ -362,7 +375,7 @@
 		defaultExtensible: false
 	});
 	encapsulatedInherit = function inherit(members, extensible) {
-		return _encapsulatedInherit(this, members, extensible, null);
+		return _encapsulatedInherit(this, members, extensible, undefined);
 	};
 
 	_encapsulatedCreate = createCreate({
@@ -374,7 +387,7 @@
 		defaultExtensible: true
 	});
 	encapsulatedCreate = function create(/* *args */) {
-		return _encapsulatedCreate(this, null, null, arguments);
+		return _encapsulatedCreate(this, undefined, undefined, arguments);
 	};
 
 	Encapsulated = Proto.inherit({
