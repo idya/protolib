@@ -15,8 +15,8 @@
 }(this, function(exports) {
 	"use strict";
 
-	var arraySlice, objectCreate, preventExtensions, getPrototypeOf, SuperWrapper, Interface, ex;
-	var _create, _protoInherit, protoInherit, _protoCreate, protoCreate, Proto, ProtoEx;
+	var arraySlice, objectCreate, defineProperty, preventExtensions, getPrototypeOf, SuperWrapper, Interface, ex;
+	var _create, create, _protoInherit, protoInherit, _protoCreate, protoCreate, Proto, ProtoEx;
 	var _encapsulatedInherit, encapsulatedInherit, _encapsulatedCreate, encapsulatedCreate, Encapsulated, EncapsulatedEx;
 
 	arraySlice = Array.prototype.slice;
@@ -31,17 +31,41 @@
 			var o, key;
 			DummyCtor.prototype = proto;
 			o = new DummyCtor();
-			for (key in props) {
-				o[key] = props[key].value;
+			if (null != props) {
+				for (key in props) {
+					if (props.hasOwnProperty(key)) {
+						o[key] = props[key].value;
+					}
+				}
+				key = "constructor";
+				if (props.hasOwnProperty(key) && !o.hasOwnProperty(key)) {
+					// XXX JScript DontEnum Bug
+					o[key] = props[key].value;
+				}
 			}
 			return o;
+		};
+	}
+
+	if (Object.defineProperty) {
+		defineProperty = Object.defineProperty;
+		try {
+			// XXX IE8 bug
+			defineProperty({}, "x", {});
+		} catch (ex) {
+			defineProperty = null;
+		}
+	}
+	if (null == defineProperty) {
+		defineProperty = function(obj, prop, descriptor) {
+			obj[prop] = descriptor.value;
 		};
 	}
 
 	if (Object.preventExtensions) {
 		preventExtensions = Object.preventExtensions;
 	} else {
-		preventExtensions = function() {
+		preventExtensions = function(obj) {
 		};
 	}
 
@@ -125,7 +149,7 @@
 		defaultWritable = opt(options.defaultWritable, true);
 		defaultExtensible = opt(options.defaultExtensible, true);
 		return function(proto, members, extensible, ctorArgs) {
-			var props, key, m, o, desc, p, iface, ctor;
+			var props, key, o, fn, desc, p, iface, ctor;
 			extensible = opt(extensible, defaultExtensible);
 			props = {};
 			if ((!Object.getPrototypeOf) && (null == props.__proto__)) {
@@ -134,83 +158,95 @@
 				};
 			}
 			if (null != members) {
+				fn = function(m, key) {
+					if (key === "__proto__") {
+						throw new Error("Invalid member name '" + key + "'"); // XXX
+					}
+					if (SuperWrapper.isPrototypeOf(m)) {
+						m = m.wrap(proto);
+					}
+					if ((null == m) || ((typeof m) !== "object")) {
+						m = {
+							configurable: defaultConfigurable,
+							writable: defaultWritable,
+							value: m
+						};
+						if (SuperWrapper.isPrototypeOf(m.value)) {
+							m.value = m.value.wrap(proto);
+						}
+						if (key === ctorName) {
+							m.enumerable = false;
+						} else if (null != isPublicFn) {
+							m.enumerable = isPublicFn(key, m.value);
+						} else {
+							m.enumerable = defaultEnumerable;
+						}
+					}
+					props[key] = m;
+				};
 				for (key in members) {
 					if (members.hasOwnProperty(key)) {
-						if (key === "__proto__") {
-							throw new Error("Invalid member key '" + key + "'"); // XXX
-						}
-						m = members[key];
-						if (SuperWrapper.isPrototypeOf(m)) {
-							m = m.wrap(proto);
-						}
-						if ((null == m) || ((typeof m) !== "object")) {
-							m = {
-								configurable: defaultConfigurable,
-								writable: defaultWritable,
-								value: m
-							};
-							if (SuperWrapper.isPrototypeOf(m.value)) {
-								m.value = m.value.wrap(proto);
-							}
-							if (key === ctorName) {
-								m.enumerable = false;
-							} else if (null != isPublicFn) {
-								m.enumerable = isPublicFn(key, m.value);
-							} else {
-								m.enumerable = defaultEnumerable;
-							}
-						}
-						props[key] = m;
+						fn(members[key], key);
 					}
+				}
+				if (members.hasOwnProperty(ctorName) && !props.hasOwnProperty(ctorName)) {
+					// XXX JScript DontEnum Bug
+					fn(members[ctorName], ctorName);
 				}
 			}
 			o = objectCreate(proto, props);
 			if (returnProxy) {
 				props = {};
-				if (Object.defineProperty) { // ES5
-					for (key in o) {
-						props[key] = p = {
-							configurable: false,
-							enumerable: true
-						};
-						m = o[key];
-						if ((typeof m) === "function") {
-							(function(m) {
+				if (null != isPublicFn) {
+					if (Object.create) { // ES5
+						fn = function(m, key) {
+							props[key] = p = {
+								configurable: false,
+								enumerable: true
+							};
+							if ((typeof m) === "function") {
 								p.value = function() {
 									return m.apply(o, arguments);
 								};
-							}(m));
-							p.writable = false;
-						} else {
-							(function(key) {
-								p.get = function get() {
-									return o[key];
-								};
-							}(key));
-							desc = getPropertyDescriptorES5(o, key);
-							if (desc.writable || desc.set) {
+								p.writable = false;
+							} else {
 								(function(key) {
+									p.get = function get() {
+										return o[key];
+									};
+								}(key));
+								desc = getPropertyDescriptorES5(o, key);
+								if (desc.writable || desc.set) {
 									p.set = function set(v) {
 										o[key] = v;
 									};
-								}(key));
+								}
 							}
+						};
+						for (key in o) {
+							// XXX http://stackoverflow.com/questions/13714938/inherited-non-enumerable-properties-in-for-in-loop-javascript
+							// but: should not override public with private
+							fn(o[key], key);
 						}
-					}
-				} else { // pre-ES5
-					for (key in o) {
-						m = o[key];
-						if (((typeof m) === "function") && (key !== ctorName) && (key !== "__proto__") && ((null == isPublicFn) || isPublicFn(key, m))) {
-							(function(m) {
-								iface[key] = function() {
-									return m.apply(o, arguments);
+						iface = objectCreate(Interface, props);
+					} else { // pre-ES5
+						fn = function(m, key) {
+							if (((typeof m) === "function") && (key !== ctorName) && (key !== "__proto__") && isPublicFn(key, m)) {
+								props[key] = {
+									value: function() {
+										return m.apply(o, arguments);
+									}
 								};
-							}(m));
+							}
+						};
+						for (key in o) {
+							fn(o[key], key);
 						}
+						iface = objectCreate(Interface, props);
 					}
 				}
-				o.iface = iface = objectCreate(Interface, props);
 				preventExtensions(iface);
+				o.iface = iface;
 			}
 			if (null != ctorArgs) {
 				ctor = o[ctorName];
@@ -303,6 +339,7 @@
 			}
 		}
 	});
+	preventExtensions(ex);
 
 	// using the tools:
 
@@ -312,16 +349,16 @@
 		defaultWritable: true,
 		defaultExtensible: true
 	});
-	function create(proto, members, extensible) {
+	create = function create(proto, members, extensible) {
 		return _create(proto, members, extensible, undefined);
-	}
+	};
 
 	function ProtoCtor() {
 	}
 
 	_protoInherit = createCreate({
 		defaultConfigurable: false,
-		defaultEnumerable: false,
+		defaultEnumerable: true,
 		defaultWritable: false,
 		defaultExtensible: false
 	});
@@ -353,6 +390,9 @@
 
 	ProtoEx = Proto.inherit(ex);
 
+	function EncapsulatedCtor() {
+	}
+
 	function isPublic(key, m) {
 		if ((key.charAt(0) === "_") || ((typeof m) !== "function")) {
 			return false;
@@ -370,7 +410,7 @@
 		isPublicFn: isPublic,
 		returnProxy: false,
 		defaultConfigurable: false,
-		defaultEnumerable: false,
+		defaultEnumerable: true,
 		defaultWritable: false,
 		defaultExtensible: false
 	});
@@ -390,10 +430,15 @@
 		return _encapsulatedCreate(this, undefined, undefined, arguments);
 	};
 
-	Encapsulated = Proto.inherit({
+	// XXX should inherit from Proto (no need for constructor and hasPrototype), but:
+	// http://stackoverflow.com/questions/13714938/inherited-non-enumerable-properties-in-for-in-loop-javascript
+	Encapsulated = encapsulatedInherit.call(Object.prototype, {
+		constructor: EncapsulatedCtor,
 		inherit: encapsulatedInherit,
-		create: encapsulatedCreate
+		create: encapsulatedCreate,
+		hasPrototype: hasPrototype
 	});
+	EncapsulatedCtor.prototype = Encapsulated;
 
 	EncapsulatedEx = Encapsulated.inherit(ex);
 
