@@ -15,11 +15,73 @@
 }(this, function(exports) {
 	"use strict";
 
-	var arraySlice, objectCreate, defineProperty, preventExtensions, getPrototypeOf, SuperWrapper, Interface, ex;
-	var _create, create, _protoInherit, protoInherit, _protoCreate, protoCreate, Proto, ProtoEx;
-	var _encapsulatedInherit, encapsulatedInherit, _encapsulatedCreate, encapsulatedCreate, Encapsulated, EncapsulatedEx;
+	var arraySlice, eachOwn, shadowedEnumerableBug, objectCreate, defineProperty, preventExtensions, getPrototypeOf, SuperWrapper, Interface, ex, Proto;
 
 	arraySlice = Array.prototype.slice;
+
+	(function() {
+		// JScript DontEnum bug workaround
+		var a, t, i, key, b;
+		a = [ "constructor", "propertyIsEnumerable", "isPrototypeOf", "hasOwnProperty", "toLocaleString", "toString", "valueOf" ];
+		t = {};
+		for (i = (a.length - 1); i >= 0; i--) {
+			t[a[i]] = false;
+		}
+		for (key in t) {
+			t[key] = true;
+		}
+		for (i = (a.length - 1); i >= 0; i--) {
+			if (t[a[i]]) {
+				a.splice(i, 1);
+			}
+		}
+		b = a.length > 0;
+		eachOwn = function(o, fn) {
+			var key, i;
+			for (key in o) {
+				if (o.hasOwnProperty(key)) {
+					fn(o[key], key);
+				}
+			}
+			if (b) {
+				for (i = (a.length - 1); i >= 0; i--) {
+					key = a[i];
+					if (o.hasOwnProperty(key)) {
+						fn(o[key], key);
+					}
+				}
+			}
+		};
+	}());
+
+	(function() {
+		// http://stackoverflow.com/questions/13714938/inherited-non-enumerable-properties-in-for-in-loop-javascript workaround
+		var o1, o2, key;
+		shadowedEnumerableBug = false;
+		if (Object.create) {
+			o1 = {
+				x: true
+			};
+			o2 = Object.create(o1, {
+				x: {
+					enumerable: false,
+					value: true
+				}
+			});
+			for (key in o2) {
+				if (key === "x") {
+					shadowedEnumerableBug = true;
+				}
+			}
+		}
+	}());
+
+	function each(o, fn) {
+		var key;
+		for (key in o) {
+			fn(o[key], key);
+		}
+	}
 
 	function DummyCtor() {
 	}
@@ -28,20 +90,13 @@
 		objectCreate = Object.create;
 	} else {
 		objectCreate = function(proto, props) {
-			var o, key;
+			var o;
 			DummyCtor.prototype = proto;
 			o = new DummyCtor();
 			if (null != props) {
-				for (key in props) {
-					if (props.hasOwnProperty(key)) {
-						o[key] = props[key].value;
-					}
-				}
-				key = "constructor";
-				if (props.hasOwnProperty(key) && !o.hasOwnProperty(key)) {
-					// XXX JScript DontEnum Bug
-					o[key] = props[key].value;
-				}
+				eachOwn(props, function(m, key) {
+					o[key] = m.value;
+				});
 			}
 			return o;
 		};
@@ -50,7 +105,7 @@
 	if (Object.defineProperty) {
 		defineProperty = Object.defineProperty;
 		try {
-			// XXX IE8 bug
+			// IE8 defineProperty workaround
 			defineProperty({}, "x", {});
 		} catch (ex) {
 			defineProperty = null;
@@ -88,35 +143,37 @@
 		} while (obj);
 	}
 
-	SuperWrapper = objectCreate(Object.prototype, {
-		wrap: {
-			enumerable: true,
-			value: function(proto) {
-				var method;
-				method = this.method;
-				return function() {
-					var superOrig, superApplyOrig;
-					superOrig = this._super;
-					superApplyOrig = this._superApply;
-					this._super = function _super(methodName /* *args */) {
-						var args;
-						args = arraySlice.call(arguments, 1);
-						return proto[methodName].apply(this, args);
-					};
-					this._superApply = function _superApply(methodName, args) {
-						return proto[methodName].apply(this, args);
-					};
-					try {
-						return method.apply(this, arguments);
-					} finally {
-						this._super = superOrig;
-						this._superApply = superApplyOrig;
-					}
-				};
-			}
-		}
-	});
+	SuperWrapper = objectCreate(Object.prototype);
 	preventExtensions(SuperWrapper);
+
+	function superWrap(method) {
+		var w;
+		w = objectCreate(SuperWrapper);
+		w.method = method;
+		return w;
+	}
+
+	function doSuperWrap(method, proto) {
+		return function() {
+			var superOrig, superApplyOrig;
+			superOrig = this._super;
+			superApplyOrig = this._superApply;
+			this._super = function _super(methodName /* *args */) {
+				var args;
+				args = arraySlice.call(arguments, 1);
+				return proto[methodName].apply(this, args);
+			};
+			this._superApply = function _superApply(methodName, args) {
+				return proto[methodName].apply(this, args);
+			};
+			try {
+				return method.apply(this, arguments);
+			} finally {
+				this._super = superOrig;
+				this._superApply = superApplyOrig;
+			}
+		};
+	}
 
 	Interface = {};
 	preventExtensions(Interface);
@@ -131,17 +188,21 @@
 
 	/**
 	 * @option ctorName
+	 * @option superWrapAlways
 	 * @option isPublicFn
 	 * @option returnProxy
 	 * @option defaultConfigurable
 	 * @option defaultEnumerable
 	 * @option defaultWritable
 	 * @option defaultExtensible
+	 * @option shadowedEnumerableFix
 	 */
 	function createCreate(options) {
-		var ctorName, isPublicFn, returnProxy, defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible;
+		var ctorName, superWrapAlways, isPublicFn, returnProxy;
+		var defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible, shadowedEnumerableFix;
 		options = options || {};
 		ctorName = opt(options.ctorName, "constructor");
+		superWrapAlways = opt(options.superWrapAlways, false);
 		isPublicFn = options.isPublicFn;
 		returnProxy = opt(options.returnProxy, false);
 		defaultConfigurable = opt(options.defaultConfigurable, true);
@@ -149,7 +210,7 @@
 		defaultWritable = opt(options.defaultWritable, true);
 		defaultExtensible = opt(options.defaultExtensible, true);
 		return function(proto, members, extensible, ctorArgs) {
-			var props, key, o, fn, desc, p, iface, ctor;
+			var props, o, iface, ctor;
 			extensible = opt(extensible, defaultExtensible);
 			props = {};
 			if ((!Object.getPrototypeOf) && (null == props.__proto__)) {
@@ -158,12 +219,16 @@
 				};
 			}
 			if (null != members) {
-				fn = function(m, key) {
+				eachOwn(members, function(m, key) {
 					if (key === "__proto__") {
-						throw new Error("Invalid member name '" + key + "'"); // XXX
+						throw new Error("Invalid member name '" + key + "'");
 					}
 					if (SuperWrapper.isPrototypeOf(m)) {
-						m = m.wrap(proto);
+						m = doSuperWrap(m, proto);
+					} else if (superWrapAlways) {
+						if ((typeof m) === "function") {
+							m = doSuperWrap(m, proto);
+						}
 					}
 					if ((null == m) || ((typeof m) !== "object")) {
 						m = {
@@ -172,7 +237,11 @@
 							value: m
 						};
 						if (SuperWrapper.isPrototypeOf(m.value)) {
-							m.value = m.value.wrap(proto);
+							m = doSuperWrap(m, proto);
+						} else {
+							if ((typeof m) === "function") {
+								m = doSuperWrap(m, proto);
+							}
 						}
 						if (key === ctorName) {
 							m.enumerable = false;
@@ -183,23 +252,21 @@
 						}
 					}
 					props[key] = m;
-				};
-				for (key in members) {
-					if (members.hasOwnProperty(key)) {
-						fn(members[key], key);
-					}
-				}
-				if (members.hasOwnProperty(ctorName) && !props.hasOwnProperty(ctorName)) {
-					// XXX JScript DontEnum Bug
-					fn(members[ctorName], ctorName);
-				}
+				});
 			}
 			o = objectCreate(proto, props);
 			if (returnProxy) {
 				props = {};
 				if (null != isPublicFn) {
 					if (Object.create) { // ES5
-						fn = function(m, key) {
+						each(o, function(m, key) {
+							var p, desc;
+							if (shadowedEnumerableBug && shadowedEnumerableFix) {
+								desc = getPropertyDescriptorES5(o, key);
+								if (!desc.enumerable) {
+									return;
+								}
+							}
 							props[key] = p = {
 								configurable: false,
 								enumerable: true
@@ -215,22 +282,20 @@
 										return o[key];
 									};
 								}(key));
-								desc = getPropertyDescriptorES5(o, key);
+								if (null != desc) {
+									desc = getPropertyDescriptorES5(o, key);
+								}
 								if (desc.writable || desc.set) {
 									p.set = function set(v) {
 										o[key] = v;
 									};
 								}
 							}
-						};
-						for (key in o) {
-							// XXX http://stackoverflow.com/questions/13714938/inherited-non-enumerable-properties-in-for-in-loop-javascript
-							// but: should not override public with private
-							fn(o[key], key);
-						}
+						});
 						iface = objectCreate(Interface, props);
 					} else { // pre-ES5
-						fn = function(m, key) {
+						each(o, function(m, key) {
+							// XXX JScript DontEnum bug
 							if (((typeof m) === "function") && (key !== ctorName) && (key !== "__proto__") && isPublicFn(key, m)) {
 								props[key] = {
 									value: function() {
@@ -238,10 +303,7 @@
 									}
 								};
 							}
-						};
-						for (key in o) {
-							fn(o[key], key);
-						}
+						});
 						iface = objectCreate(Interface, props);
 					}
 				}
@@ -263,13 +325,6 @@
 				return o;
 			}
 		};
-	}
-
-	function superWrap(method) {
-		var w;
-		w = objectCreate(SuperWrapper);
-		w.method = method;
-		return w;
 	}
 
 	function isInterfaceOf(o, proto) {
@@ -341,106 +396,20 @@
 	});
 	preventExtensions(ex);
 
-	// using the tools:
-
-	_create = createCreate({
-		defaultConfigurable: true,
-		defaultEnumerable: true,
-		defaultWritable: true,
-		defaultExtensible: true
-	});
-	create = function create(proto, members, extensible) {
-		return _create(proto, members, extensible, undefined);
-	};
-
-	function ProtoCtor() {
-	}
-
-	_protoInherit = createCreate({
-		defaultConfigurable: false,
-		defaultEnumerable: true,
-		defaultWritable: false,
-		defaultExtensible: false
-	});
-	protoInherit = function inherit(members, extensible) {
-		return _protoInherit(this, members, extensible, undefined);
-	};
-
-	_protoCreate = createCreate({
-		defaultConfigurable: true,
-		defaultEnumerable: true,
-		defaultWritable: true,
-		defaultExtensible: true
-	});
-	protoCreate = function create(/* *args */) {
-		return _protoCreate(this, undefined, undefined, arguments);
-	};
-
-	function hasPrototype(o) {
-		return o.isPrototypeOf(this);
-	}
-
-	Proto = protoInherit.call(Object.prototype, {
-		constructor: ProtoCtor,
-		inherit: protoInherit,
-		create: protoCreate,
-		hasPrototype: hasPrototype
-	});
-	ProtoCtor.prototype = Proto;
-
-	ProtoEx = Proto.inherit(ex);
-
-	function EncapsulatedCtor() {
-	}
-
-	function isPublic(key, m) {
-		if ((key.charAt(0) === "_") || ((typeof m) !== "function")) {
-			return false;
+	Proto = objectCreate(Object.prototype, {
+		constructor: {
+			value: function ProtoCtor() {
+			}
+		},
+		hasPrototype: {
+			enumerable: true,
+			value: function hasPrototype(o) {
+				return o.isPrototypeOf(this);
+			}
 		}
-		switch (key) {
-		case "inherit":
-		case "create":
-			return false;
-			break; // XXX Eclipse JS parsing bug
-		}
-		return true;
-	}
-
-	_encapsulatedInherit = createCreate({
-		isPublicFn: isPublic,
-		returnProxy: false,
-		defaultConfigurable: false,
-		defaultEnumerable: true,
-		defaultWritable: false,
-		defaultExtensible: false
 	});
-	encapsulatedInherit = function inherit(members, extensible) {
-		return _encapsulatedInherit(this, members, extensible, undefined);
-	};
-
-	_encapsulatedCreate = createCreate({
-		isPublicFn: isPublic,
-		returnProxy: true,
-		defaultConfigurable: true,
-		defaultEnumerable: true,
-		defaultWritable: true,
-		defaultExtensible: true
-	});
-	encapsulatedCreate = function create(/* *args */) {
-		return _encapsulatedCreate(this, undefined, undefined, arguments);
-	};
-
-	// XXX should inherit from Proto (no need for constructor and hasPrototype), but:
-	// http://stackoverflow.com/questions/13714938/inherited-non-enumerable-properties-in-for-in-loop-javascript
-	Encapsulated = encapsulatedInherit.call(Object.prototype, {
-		constructor: EncapsulatedCtor,
-		inherit: encapsulatedInherit,
-		create: encapsulatedCreate,
-		hasPrototype: hasPrototype
-	});
-	EncapsulatedCtor.prototype = Encapsulated;
-
-	EncapsulatedEx = Encapsulated.inherit(ex);
+	preventExtensions(Proto);
+	Proto.constructor.prototype = Proto;
 
 	// exports:
 
@@ -450,9 +419,5 @@
 	exports.superWrap = superWrap;
 	exports.isInterfaceOf = isInterfaceOf;
 	exports.ex = ex;
-	exports.create = create;
 	exports.Proto = Proto;
-	exports.ProtoEx = ProtoEx;
-	exports.Encapsulated = Encapsulated;
-	exports.EncapsulatedEx = EncapsulatedEx;
 }));
