@@ -15,8 +15,11 @@
 }(this, function(exports) {
 	"use strict";
 
-	var arraySlice, eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapper, Interface, Proto;
+	var isPrototypeOf, hasOwnProperty, arraySlice;
+	var eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapper, Interface, Proto;
 
+	isPrototypeOf = Object.prototype.isPrototypeOf;
+	hasOwnProperty = Object.prototype.hasOwnProperty;
 	arraySlice = Array.prototype.slice;
 
 	(function() {
@@ -39,14 +42,14 @@
 		eachOwn = function(o, fn) {
 			var key, i;
 			for (key in o) {
-				if (o.hasOwnProperty(key)) {
+				if (hasOwnProperty.call(o, key)) {
 					fn(o[key], key);
 				}
 			}
 			if (b) {
 				for (i = (a.length - 1); i >= 0; i--) {
 					key = a[i];
-					if (o.hasOwnProperty(key)) {
+					if (hasOwnProperty.call(o, key)) {
 						fn(o[key], key);
 					}
 				}
@@ -140,9 +143,17 @@
 
 	function doSuperWrap(method, proto) {
 		return function() {
-			var superOrig, superApplyOrig;
-			superOrig = this._super;
-			superApplyOrig = this._superApply;
+			var noSuperOrig, noSuperApplyOrig, superOrig, superApplyOrig;
+			if (hasOwnProperty.call(this, "_super")) {
+				superOrig = this._super;
+			} else {
+				noSuperOrig = true;
+			}
+			if (hasOwnProperty.call(this, "_superApply")) {
+				superApplyOrig = this._superApply;
+			} else {
+				noSuperApplyOrig = true;
+			}
 			this._super = function _super(methodName /* *args */) {
 				var args;
 				args = arraySlice.call(arguments, 1);
@@ -154,8 +165,16 @@
 			try {
 				return method.apply(this, arguments);
 			} finally {
-				this._super = superOrig;
-				this._superApply = superApplyOrig;
+				if (noSuperOrig) {
+					delete this._super;
+				} else {
+					this._super = superOrig;
+				}
+				if (noSuperApplyOrig) {
+					delete this._superApply;
+				} else {
+					this._superApply = superApplyOrig;
+				}
 			}
 		};
 	}
@@ -327,7 +346,7 @@
 		hasPrototype: {
 			enumerable: true,
 			value: function hasPrototype(o) {
-				return o.isPrototypeOf(this);
+				return isPrototypeOf.call(o, this);
 			}
 		}
 	});
@@ -335,7 +354,7 @@
 	Proto.constructor.prototype = Proto;
 
 	function isInterfaceOf(o, proto) {
-		if ((o === proto) || proto.isPrototypeOf(o)) {
+		if ((o === proto) || isPrototypeOf.call(proto, o)) {
 			return true;
 		}
 		if (!Interface.isPrototypeOf(o)) {
@@ -365,13 +384,13 @@
 				}
 				for (i = a.length - 1; i >= 0; i--) {
 					o = a[i];
-					if (o.hasOwnProperty("_dispose")) {
+					if (hasOwnProperty.call(o, "_dispose")) {
 						fn = o._dispose;
 						if ((typeof fn) === "function") {
 							this._addDestroyFn(fn);
 						}
 					}
-					if (o.hasOwnProperty("_init")) {
+					if (hasOwnProperty.call(o, "_init")) {
 						fn = o._init;
 						if ((typeof fn) === "function") {
 							fn.apply(this, arguments);
