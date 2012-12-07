@@ -15,7 +15,7 @@
 }(this, function(exports) {
 	"use strict";
 
-	var arraySlice, eachOwn, shadowedEnumerableBug, objectCreate, defineProperty, preventExtensions, getPrototypeOf, SuperWrapper, Interface, ex, Proto;
+	var arraySlice, eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapper, Interface, ex, Proto;
 
 	arraySlice = Array.prototype.slice;
 
@@ -99,21 +99,6 @@
 				});
 			}
 			return o;
-		};
-	}
-
-	if (Object.defineProperty) {
-		defineProperty = Object.defineProperty;
-		try {
-			// IE8 defineProperty workaround
-			defineProperty({}, "x", {});
-		} catch (ex) {
-			defineProperty = null;
-		}
-	}
-	if (null == defineProperty) {
-		defineProperty = function(obj, prop, descriptor) {
-			obj[prop] = descriptor.value;
 		};
 	}
 
@@ -327,6 +312,21 @@
 		};
 	}
 
+	Proto = objectCreate(Object.prototype, {
+		constructor: {
+			value: function ProtoCtor() {
+			}
+		},
+		hasPrototype: {
+			enumerable: true,
+			value: function hasPrototype(o) {
+				return o.isPrototypeOf(this);
+			}
+		}
+	});
+	preventExtensions(Proto);
+	Proto.constructor.prototype = Proto;
+
 	function isInterfaceOf(o, proto) {
 		if ((o === proto) || proto.isPrototypeOf(o)) {
 			return true;
@@ -339,12 +339,11 @@
 		}
 	}
 
-	ex = objectCreate(Object.prototype, {
-
-		// member variables: _destroyFns
-
-		constructor: {
-			enumerable: true,
+	function createEx(ctorName) {
+		var ex;
+		ctorName = opt(options.ctorName, "constructor");
+		ex = {};
+		ex[ctorName] = {
 			value: function() {
 				var a, o, i, fn;
 				this._destroyFns = [];
@@ -373,16 +372,13 @@
 					}
 				}
 			}
-		},
-
-		_addDestroyFn: {
-			enumerable: true,
+		};
+		ex._addDestroyFn = {
 			value: function _addDestroyFn(fn) {
 				this._destroyFns.push(fn);
 			}
-		},
-
-		destroy: {
+		};
+		ex.destroy = {
 			enumerable: true,
 			value: function destroy() {
 				var i, dfns;
@@ -392,24 +388,9 @@
 				}
 				delete this._destroyFns;
 			}
-		}
-	});
-	preventExtensions(ex);
-
-	Proto = objectCreate(Object.prototype, {
-		constructor: {
-			value: function ProtoCtor() {
-			}
-		},
-		hasPrototype: {
-			enumerable: true,
-			value: function hasPrototype(o) {
-				return o.isPrototypeOf(this);
-			}
-		}
-	});
-	preventExtensions(Proto);
-	Proto.constructor.prototype = Proto;
+		};
+		return ex;
+	}
 
 	// exports:
 
@@ -417,7 +398,7 @@
 	exports.createCreate = createCreate;
 	exports.Interface = Interface;
 	exports.superWrap = superWrap;
-	exports.isInterfaceOf = isInterfaceOf;
-	exports.ex = ex;
 	exports.Proto = Proto;
+	exports.isInterfaceOf = isInterfaceOf;
+	exports.createEx = createEx;
 }));
