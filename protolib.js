@@ -195,7 +195,7 @@
 		defaultWritable = opt(options.defaultWritable, true);
 		defaultExtensible = opt(options.defaultExtensible, true);
 		return function(proto, members, extensible, ctorArgs) {
-			var props, o, iface, ctor;
+			var props, o, iface;
 			extensible = opt(extensible, defaultExtensible);
 			props = {};
 			if ((!Object.getPrototypeOf) && (!props.__proto__)) {
@@ -295,10 +295,7 @@
 				o.iface = iface;
 			}
 			if (ctorArgs) {
-				ctor = o[ctorName];
-				if ((typeof ctor) === "function") {
-					ctor.apply(o, ctorArgs);
-				}
+				o[ctorName].apply(o, ctorArgs);
 			}
 			if (!extensible) {
 				preventExtensions(o);
