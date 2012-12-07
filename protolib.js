@@ -196,7 +196,12 @@
 		defaultExtensible = opt(options.defaultExtensible, true);
 		return function(proto, members, extensible, ctorArgs) {
 			var props, o, iface;
-			extensible = opt(extensible, defaultExtensible);
+			if (undefined === proto) {
+				proto = Object.prototype;
+			}
+			if (undefined === extensible) {
+				extensible = defaultExtensible;
+			}
 			props = {};
 			if ((!Object.getPrototypeOf) && (!props.__proto__)) {
 				props.__proto__ = {
@@ -209,10 +214,10 @@
 						throw new Error("Invalid member name '" + key + "'");
 					}
 					if (SuperWrapper.isPrototypeOf(m)) {
-						m = doSuperWrap(m, proto);
-					} else if (superWrapAlways) {
-						if ((typeof m) === "function") {
-							m = doSuperWrap(m, proto);
+						if (superWrapAlways) {
+							m = m.method;
+						} else {
+							m = doSuperWrap(m.method, proto);
 						}
 					}
 					if ((null == m) || ((typeof m) !== "object")) {
@@ -221,19 +226,25 @@
 							writable: defaultWritable,
 							value: m
 						};
-						if (SuperWrapper.isPrototypeOf(m.value)) {
-							m = doSuperWrap(m, proto);
-						} else if (superWrapAlways) {
-							if ((typeof m) === "function") {
-								m = doSuperWrap(m, proto);
-							}
-						}
 						if (key === ctorName) {
 							m.enumerable = false;
 						} else if (isPublicFn) {
 							m.enumerable = isPublicFn(key, m.value);
 						} else {
 							m.enumerable = defaultEnumerable;
+						}
+					} else {
+						if (SuperWrapper.isPrototypeOf(m.value)) {
+							if (superWrapAlways) {
+								m.value = m.value.method;
+							} else {
+								m.value = doSuperWrap(m.value.method, proto);
+							}
+						}
+					}
+					if (superWrapAlways) {
+						if ((typeof m.value) === "function") {
+							m.value = doSuperWrap(m.value, proto);
 						}
 					}
 					props[key] = m;
