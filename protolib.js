@@ -36,7 +36,7 @@
 			}
 		}
 		b = a.length > 0;
-		eachOwn = function eachOwn(o, fn) {
+		eachOwn = function(o, fn) {
 			var key, i;
 			for (key in o) {
 				if (o.hasOwnProperty(key)) {
