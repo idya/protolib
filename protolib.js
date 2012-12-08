@@ -15,7 +15,7 @@
 }(this, function(exports) {
 	"use strict";
 
-	var isPrototypeOf, hasOwnProperty, arraySlice;
+	var isPrototypeOf, hasOwnProperty, arraySlice, bind;
 	var eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapper, Interface, Proto;
 
 	isPrototypeOf = Object.prototype.isPrototypeOf;
@@ -84,6 +84,18 @@
 		for (key in o) {
 			fn(o[key], key);
 		}
+	}
+
+	if (Function.prototype.bind) {
+		bind = Function.prototype.bind;
+	} else {
+		bind = function(thisArg) {
+			var fn;
+			fn = this;
+			return function() {
+				return fn.apply(thisArg, arguments);
+			};
+		};
 	}
 
 	function DummyCtor() {
@@ -299,16 +311,12 @@
 							enumerable: true
 						};
 						if ((typeof m) === "function") {
-							p.value = function() {
-								return m.apply(o, arguments);
-							};
+							p.value = bind.call(m, o);
 							p.writable = false;
 						} else {
-							(function(key) {
-								p.get = function get() {
-									return o[key];
-								};
-							}(key));
+							p.get = function get() {
+								return o[key];
+							};
 							if (!desc) {
 								desc = getPropertyDescriptorES5(o, key);
 							}
@@ -326,9 +334,7 @@
 						if (((typeof m) === "function") && (key !== ctorName) && (key !== "__proto__")
 								&& ((isPublicFn && isPublicFn(key, m)) || ((!isPublicFn) && defaultEnumerable))) {
 							props[key] = {
-								value: function() {
-									return m.apply(o, arguments);
-								}
+								value: bind.call(m, o)
 							};
 						}
 					});
