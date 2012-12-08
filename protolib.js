@@ -235,7 +235,7 @@
 					if (key === "__proto__") {
 						throw new Error("Invalid member name '" + key + "'");
 					}
-					if ((!propertyDescriptors) && SuperWrapper.isPrototypeOf(m)) {
+					if (SuperWrapper.isPrototypeOf(m)) {
 						if (superWrapAlways) {
 							m = m.method;
 						} else {
