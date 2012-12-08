@@ -94,7 +94,7 @@ test("superWrap-1", 3, function() {
 	});
 	ooo.m("c");
 });
-test("superWrap-2", 3, function() {
+test("superWrap-2", 5, function() {
 	var create = proto.createCreate();
 	var o = create(null, {
 		m: {
@@ -119,9 +119,13 @@ test("superWrap-2", 3, function() {
 			})
 		}
 	});
+	oo._super = "x";
+	oo._superApply = "y";
 	ooo.m("c");
+	ok(!Object.prototype.hasOwnProperty.call(ooo, "_super"), "this._super restore");
+	ok(!Object.prototype.hasOwnProperty.call(ooo, "_superApply"), "this._superApply restore");
 });
-test("superWrapAlways-1", 3, function() {
+test("superWrapAlways-1", 5, function() {
 	var create = proto.createCreate({
 		superWrapAlways: true
 	});
@@ -143,8 +147,10 @@ test("superWrapAlways-1", 3, function() {
 		}
 	});
 	ooo.m("c");
+	strictEqual(ooo._super, undefined, "this._super restore");
+	strictEqual(ooo._superApply, undefined, "this._superApply restore");
 });
-test("superWrapAlways-2", 3, function() {
+test("superWrapAlways-2", 5, function() {
 	var create = proto.createCreate({
 		superWrapAlways: true
 	});
@@ -171,9 +177,13 @@ test("superWrapAlways-2", 3, function() {
 			}
 		}
 	});
+	ooo._super = "x";
+	ooo._superApply = "y";
 	ooo.m("c");
+	strictEqual(ooo._super, "x", "this._super restore");
+	strictEqual(ooo._superApply, "y", "this._superApply restore");
 });
-test("superException", 1, function() {
+test("superException", function() {
 	var create = proto.createCreate();
 	var MyError = function() {
 	};
@@ -185,7 +195,11 @@ test("superException", 1, function() {
 			})
 		}
 	});
+	o._super = "x";
+	o._superApply = "y";
 	throws(function() {
 		o.m();
-	}, MyError, "exception message");
+	}, MyError, "exception");
+	strictEqual(o._super, "x", "this._super restore");
+	strictEqual(o._superApply, "y", "this._superApply restore");
 });
