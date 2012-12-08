@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Minify">
+	<target name="minify">
+		<java jar="yuicompressor-2.4.7.jar" fork="true">
+			<arg value="-v" />
+			<arg value="--charset" />
+			<arg value="UTF-8" />
+			<arg value="-o" />
+			<arg value="../protolib-min.js" />
+			<arg value="../protolib.js" />
+		</java>
+	</target>
+</project>
