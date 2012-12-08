@@ -203,3 +203,41 @@ test("superException", function() {
 	strictEqual(o._super, "x", "this._super restore");
 	strictEqual(o._superApply, "y", "this._superApply restore");
 });
+test("configurable", function() {
+	if (!Object.create) {
+		expect(0);
+	}
+	var create = proto.createCreate();
+	var o = create(null, {
+		m: "x"
+	});
+	if (Object.create) {
+		Object.defineProperty(o, "m", {
+			enumerable: false
+		});
+	}
+	create = proto.createCreate({
+		defaultConfigurable: false
+	});
+	o = create(null, {
+		m: "x"
+	});
+	if (Object.create) {
+		throws(function() {
+			Object.defineProperty(o, "m", {
+				enumerable: false
+			});
+		});
+	}
+	o = create(null, {
+		m: {
+			configurable: true,
+			value: "x"
+		}
+	});
+	if (Object.create) {
+		Object.defineProperty(o, "m", {
+			enumerable: false
+		});
+	}
+});
