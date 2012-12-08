@@ -227,7 +227,7 @@ test("configurable", function() {
 			Object.defineProperty(o, "m", {
 				enumerable: false
 			});
-		});
+		}, "defaultConfigurable: false");
 	}
 	o = create(null, {
 		m: {
@@ -240,4 +240,32 @@ test("configurable", function() {
 			enumerable: false
 		});
 	}
+});
+test("writable", function() {
+	if (!Object.create) {
+		expect(0);
+	}
+	var create = proto.createCreate();
+	var o = create(null, {
+		m: "x"
+	});
+	o.x = "y";
+	create = proto.createCreate({
+		defaultWritable: false
+	});
+	o = create(null, {
+		m: "x"
+	});
+	if (Object.create) {
+		throws(function() {
+			o.m = "y";
+		}, "defaultWritable: false");
+	}
+	o = create(null, {
+		m: {
+			writable: true,
+			value: "x"
+		}
+	});
+	o.m = "y";
 });
