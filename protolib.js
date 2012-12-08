@@ -191,6 +191,7 @@
 	}
 
 	/**
+	 * @option propertyDescriptors
 	 * @option ctorName
 	 * @option superWrapAlways
 	 * @option isPublicFn
@@ -202,9 +203,10 @@
 	 * @option shadowedEnumerableFix
 	 */
 	function createCreate(options) {
-		var ctorName, superWrapAlways, isPublicFn, returnProxy;
+		var propertyDescriptors, ctorName, superWrapAlways, isPublicFn, returnProxy;
 		var defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible, shadowedEnumerableFix;
 		options = options || {};
+		propertyDescriptors = options.propertyDescriptors;
 		ctorName = opt(options.ctorName, "constructor");
 		superWrapAlways = opt(options.superWrapAlways, false);
 		isPublicFn = options.isPublicFn;
@@ -229,17 +231,38 @@
 			}
 			if (null != members) {
 				eachOwn(members, function(m, key) {
+					var mm, k;
 					if (key === "__proto__") {
 						throw new Error("Invalid member name '" + key + "'");
 					}
-					if (SuperWrapper.isPrototypeOf(m)) {
+					if ((!propertyDescriptors) && SuperWrapper.isPrototypeOf(m)) {
 						if (superWrapAlways) {
 							m = m.method;
 						} else {
 							m = doSuperWrap(m.method, proto);
 						}
 					}
-					if ((null == m) || ((typeof m) !== "object")) {
+					if (propertyDescriptors || ((undefined === propertyDescriptors) && (null != m) && ((typeof m) === "object"))) {
+						if (null != m) {
+							if (SuperWrapper.isPrototypeOf(m.value)) {
+								mm = {};
+								for (k in m) {
+									mm[k] = m[k];
+								}
+								mm.value = doSuperWrap(m.value.method, proto);
+								m = mm;
+							} else if (superWrapAlways) {
+								if ((typeof m.value) === "function") {
+									mm = {};
+									for (k in m) {
+										mm[k] = m[k];
+									}
+									mm.value = doSuperWrap(m.value, proto);
+									m = mm;
+								}
+							}
+						}
+					} else {
 						m = {
 							configurable: defaultConfigurable,
 							writable: defaultWritable,
@@ -252,17 +275,7 @@
 						} else {
 							m.enumerable = defaultEnumerable;
 						}
-					} else {
-						if (SuperWrapper.isPrototypeOf(m.value)) {
-							if (superWrapAlways) {
-								m.value = m.value.method;
-							} else {
-								m.value = doSuperWrap(m.value.method, proto);
-							}
-						}
-					}
-					if (superWrapAlways) {
-						if ((typeof m.value) === "function") {
+						if (superWrapAlways && ((typeof m.value) === "function")) {
 							m.value = doSuperWrap(m.value, proto);
 						}
 					}

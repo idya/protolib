@@ -269,3 +269,29 @@ test("writable", function() {
 	});
 	o.m = "y";
 });
+test("enumerable", function() {
+	if (!Object.create) {
+		expect(2);
+	}
+	var create = proto.createCreate();
+	var o = create(null, {
+		m: "x"
+	});
+	ok(Object.prototype.propertyIsEnumerable.call(o, "m"), "defaults");
+	create = proto.createCreate({
+		defaultEnumerable: false
+	});
+	o = create(null, {
+		m: "x"
+	});
+	if (Object.create) {
+		ok(!Object.prototype.propertyIsEnumerable.call(o, "m"), "defaultEnumerable: false");
+	}
+	o = create(null, {
+		m: {
+			enumerable: true,
+			value: "x"
+		}
+	});
+	ok(Object.prototype.propertyIsEnumerable.call(o, "m"), "enumerable: true");
+});
