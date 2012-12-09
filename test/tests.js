@@ -429,6 +429,7 @@ test("returnInterface methods", function() {
 	});
 	strictEqual(o._privateMethod, undefined, "private");
 	strictEqual(o.publicMethod(3), 14, "public");
+	ok(proto.Interface.isPrototypeOf(o), "Interface");
 });
 test("returnInterface properties", function() {
 	if (Object.create) {
@@ -445,13 +446,10 @@ test("returnInterface properties", function() {
 			},
 			_b: 7,
 			b: {
-				enumerable: true,
 				get: function() {
-					console.log("get");
 					return this._b;
 				},
 				set: function(v) {
-					console.log("set");
 					this._b = v;
 				}
 			},
@@ -475,7 +473,38 @@ test("returnInterface properties", function() {
 		strictEqual(oo.b, 7, "get getter/setter");
 		oo.b = 5;
 		strictEqual(oo.getB(), 5, "get method getter/setter");
+		strictEqual(oo.c, 14, "get simple read-only");
+		throws(function() {
+			oo.c = 5;
+		}, "set simple read-only");
+		strictEqual(oo.d, -2, "get getter/setter read-only");
+		throws(function() {
+			oo.d = 5;
+		}, "set getter/setter read-only");
 	} else {
 		expect(0);
 	}
+});
+test("isInterfaceOf, Proto", function() {
+	var isPublic = function(key, m) {
+		return !(key.charAt(0) === "_");
+	};
+	var inherit = proto.createCreate({
+		isPublicFn: isPublic
+	});
+	var newInstance = proto.createCreate({
+		returnInterface: true,
+		isPublicFn: isPublic
+	});
+	var p = inherit(proto.Proto, {});
+	var pp = inherit(p, {});
+	var o = newInstance(pp, undefined, undefined, []);
+	ok(proto.isInterfaceOf(o, p), "p interface");
+	ok(proto.isInterfaceOf(o, pp), "pp interface");
+	o = inherit(pp, undefined, undefined, []);
+	ok(proto.isInterfaceOf(o, p), "p instance");
+	ok(proto.isInterfaceOf(o, pp), "pp instance");
+});
+test("null descriptor", function() {
+
 });

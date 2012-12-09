@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="Minify">
+<project name="Minify protolib.js">
 	<target name="minify">
 		<java jar="yuicompressor-2.4.7.jar" fork="true">
 			<arg value="-v" />
