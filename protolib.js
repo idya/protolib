@@ -189,7 +189,7 @@
 	 * @option ctorName
 	 * @option superWrapAuto
 	 * @option isPublicFn
-	 * @option returnProxy
+	 * @option returnInterface
 	 * @option defaultConfigurable
 	 * @option defaultEnumerable
 	 * @option defaultWritable
@@ -197,18 +197,19 @@
 	 * @option shadowedEnumerableFix
 	 */
 	function createCreate(options) {
-		var propertyDescriptors, ctorName, superWrapAuto, isPublicFn, returnProxy;
+		var propertyDescriptors, ctorName, superWrapAuto, isPublicFn, returnInterface;
 		var defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible, shadowedEnumerableFix;
 		options = options || {};
 		propertyDescriptors = options.propertyDescriptors;
 		ctorName = opt(options.ctorName, "constructor");
 		superWrapAuto = opt(options.superWrapAuto, false);
 		isPublicFn = options.isPublicFn;
-		returnProxy = opt(options.returnProxy, false);
+		returnInterface = opt(options.returnInterface, false);
 		defaultConfigurable = opt(options.defaultConfigurable, true);
 		defaultEnumerable = opt(options.defaultEnumerable, true);
 		defaultWritable = opt(options.defaultWritable, true);
 		defaultExtensible = opt(options.defaultExtensible, true);
+		shadowedEnumerableFix = opt(options.shadowedEnumerableFix, false);
 		return function(proto, members, extensible, ctorArgs) {
 			var props, o, iface;
 			if (undefined === proto) {
@@ -279,7 +280,7 @@
 				});
 			}
 			o = objectCreate(proto, props);
-			if (returnProxy) {
+			if (returnInterface) {
 				props = {};
 				if (Object.create) { // ES5
 					each(o, function(m, key) {
