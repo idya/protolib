@@ -189,6 +189,7 @@
 	 * @option ctorName
 	 * @option superWrapAuto
 	 * @option isPublicFn
+	 * @option ctorIsPrivate
 	 * @option returnInterface
 	 * @option defaultConfigurable
 	 * @option defaultEnumerable
@@ -197,13 +198,14 @@
 	 * @option shadowedEnumerableFix
 	 */
 	function createCreate(options) {
-		var propertyDescriptors, ctorName, superWrapAuto, isPublicFn, returnInterface;
+		var propertyDescriptors, ctorName, superWrapAuto, isPublicFn, ctorIsPrivate, returnInterface;
 		var defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible, shadowedEnumerableFix;
 		options = options || {};
 		propertyDescriptors = options.propertyDescriptors;
 		ctorName = opt(options.ctorName, "constructor");
 		superWrapAuto = opt(options.superWrapAuto, false);
 		isPublicFn = options.isPublicFn;
+		ctorIsPrivate = opt(options.ctorIsPrivate, Boolean(isPublicFn));
 		returnInterface = opt(options.returnInterface, false);
 		defaultConfigurable = opt(options.defaultConfigurable, true);
 		defaultEnumerable = opt(options.defaultEnumerable, true);
@@ -259,7 +261,7 @@
 							writable: defaultWritable,
 							value: m
 						};
-						if (key === ctorName) {
+						if (ctorIsPrivate && (key === ctorName)) {
 							m.enumerable = false;
 						} else if (isPublicFn) {
 							m.enumerable = isPublicFn(key, m.value);
@@ -316,7 +318,7 @@
 				} else { // pre-ES5
 					each(o, function(m, key) {
 						// XXX JScript DontEnum bug
-						if (((typeof m) === "function") && (key !== ctorName) && (key !== "__proto__")
+						if (((typeof m) === "function") && (!(ctorIsPrivate && (key === ctorName))) && (key !== "__proto__")
 								&& ((isPublicFn && isPublicFn(key, m)) || ((!isPublicFn) && defaultEnumerable))) {
 							props[key] = {
 								value: bind.call(m, o)

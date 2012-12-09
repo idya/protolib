@@ -288,3 +288,36 @@ test("enumerable", function() {
 	});
 	ok(Object.prototype.propertyIsEnumerable.call(o, "m"), "enumerable: true");
 });
+test("__proto__ member", function() {
+	var create = proto.createCreate();
+	var d = {};
+	d.__proto__ = "x";
+	if (d.propertyIsEnumerable("__proto__")) {
+		throws(function() {
+			var o = create(null, d);
+		});
+	} else {
+		var o = create(null, d);
+		expect(0);
+	}
+});
+test("propertyDescriptors option", function() {
+	var create = proto.createCreate({
+		propertyDescriptors: true
+	});
+	var o = create(null, {
+		m: {
+			value: "x"
+		}
+	});
+	strictEqual(o.m, "x", "propertyDescriptors: true");
+	create = proto.createCreate({
+		propertyDescriptors: false
+	});
+	o = create(null, {
+		m: {
+			value: "x"
+		}
+	});
+	strictEqual(o.m.value, "x", "propertyDescriptors: true");
+});
