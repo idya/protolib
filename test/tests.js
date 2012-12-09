@@ -178,6 +178,32 @@ test("superWrapAuto-2", 4, function() {
 	ooo.m("c");
 	strictEqual(ooo._super, "x", "this._super restore");
 });
+test("superWrap > superWrap", function() {
+	var s = 0;
+	var create = proto.createCreate({
+		superWrapAuto: true
+	});
+	var o = create(null, {
+		m: function(n) {
+			s += 5 * n;
+		},
+		k: function(n) {
+			s += 3 * n;
+		}
+	});
+	var oo = create(o, {
+		m: function(x) {
+			this._super(1);
+			this.k();
+			this._super(10);
+		},
+		k: function() {
+			this._super(100);
+		}
+	});
+	oo.m();
+	strictEqual(s, 355);
+});
 test("superException", function() {
 	var create = proto.createCreate();
 	var MyError = function() {
@@ -195,6 +221,29 @@ test("superException", function() {
 		o.m();
 	}, MyError, "exception");
 	strictEqual(o._super, "x", "this._super restore");
+});
+test("noSuperWrap", function() {
+	var create = proto.createCreate({
+		superWrapAuto: true
+	});
+	var o = create(null, {
+		m: function() {
+		}
+	});
+	var oo = create(o, {
+		m: proto.noSuperWrap(function() {
+			strictEqual(this._super, undefined, "_super is undefined");
+		})
+	});
+	oo.m();
+	oo = create(o, {
+		m: {
+			value: proto.noSuperWrap(function() {
+				strictEqual(this._super, undefined, "_super is undefined");
+			})
+		}
+	});
+	oo.m();
 });
 test("configurable", function() {
 	if (!Object.create) {
@@ -361,5 +410,72 @@ test("ctorIsPrivate", function() {
 	});
 	if (Object.create) {
 		ok(o.propertyIsEnumerable("constructor"), "default");
+	}
+});
+test("returnInterface methods", function() {
+	var create = proto.createCreate({
+		returnInterface: true,
+		isPublicFn: function(key, m) {
+			return !(key.charAt(0) === "_");
+		}
+	});
+	var o = create(null, {
+		_privateMethod: function(a) {
+			return a * 2;
+		},
+		publicMethod: function(p) {
+			return this._privateMethod(p + 4);
+		}
+	});
+	strictEqual(o._privateMethod, undefined, "private");
+	strictEqual(o.publicMethod(3), 14, "public");
+});
+test("returnInterface properties", function() {
+	if (Object.create) {
+		var create = proto.createCreate({
+			returnInterface: true,
+			isPublicFn: function(key, m) {
+				return !(key.charAt(0) === "_");
+			}
+		});
+		var o = create(null, {
+			a: 7,
+			getA: function(p) {
+				return this.a;
+			},
+			_b: 7,
+			b: {
+				enumerable: true,
+				get: function() {
+					console.log("get");
+					return this._b;
+				},
+				set: function(v) {
+					console.log("set");
+					this._b = v;
+				}
+			},
+			getB: function() {
+				return this.b;
+			},
+			c: {
+				value: 14,
+				writable: false
+			},
+			d: {
+				get: function() {
+					return -2;
+				}
+			}
+		});
+		var oo = create(o);
+		strictEqual(oo.a, 7, "get simple");
+		oo.a = 5;
+		strictEqual(oo.getA(), 5, "get method simple");
+		strictEqual(oo.b, 7, "get getter/setter");
+		oo.b = 5;
+		strictEqual(oo.getB(), 5, "get method getter/setter");
+	} else {
+		expect(0);
 	}
 });

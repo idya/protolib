@@ -15,11 +15,13 @@
 }(this, function(exports) {
 	"use strict";
 
-	var isPrototypeOf, hasOwnProperty, bind;
-	var eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapper, Interface, Proto;
+	var isPrototypeOf, hasOwnProperty, propertyDescriptorKeys, bind;
+	var eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapMarker, Interface, Proto;
 
 	isPrototypeOf = Object.prototype.isPrototypeOf;
 	hasOwnProperty = Object.prototype.hasOwnProperty;
+
+	propertyDescriptorKeys = [ "configurable", "enumerable", "value", "writable", "get", "set" ];
 
 	(function() {
 		// JScript DontEnum bug workaround
@@ -142,13 +144,22 @@
 		} while (obj);
 	}
 
-	SuperWrapper = objectCreate(Object.prototype);
-	preventExtensions(SuperWrapper);
+	SuperWrapMarker = objectCreate(Object.prototype);
+	preventExtensions(SuperWrapMarker);
 
 	function superWrap(method) {
 		var w;
-		w = objectCreate(SuperWrapper);
+		w = objectCreate(SuperWrapMarker);
 		w.method = method;
+		w.wrap = true;
+		return w;
+	}
+
+	function noSuperWrap(method) {
+		var w;
+		w = objectCreate(SuperWrapMarker);
+		w.method = method;
+		w.wrap = false;
 		return w;
 	}
 
@@ -228,57 +239,63 @@
 			}
 			if (null != members) {
 				eachOwn(members, function(m, key) {
-					var mm, k;
+					var mm, i, k;
 					if (key === "__proto__") {
 						throw new Error("Invalid member name '" + key + "'");
 					}
 					if (propertyDescriptors || ((undefined === propertyDescriptors) && (null != m) && ((typeof m) === "object"))
-							&& !SuperWrapper.isPrototypeOf(m)) {
-						if (null != m) {
-							if (SuperWrapper.isPrototypeOf(m.value)) {
-								mm = {};
-								for (k in m) {
+							&& !SuperWrapMarker.isPrototypeOf(m)) {
+						if (null == m) {
+							mm = m;
+						} else {
+							mm = {};
+							for (i = propertyDescriptorKeys.length - 1; i >= 0; i--) {
+								k = propertyDescriptorKeys[i];
+								if (k in m) {
 									mm[k] = m[k];
 								}
-								if (null == proto) {
-									mm.value = m.value.method;
-								} else {
-									mm.value = doSuperWrap(m.value.method, proto[key]);
+							}
+							if (undefined === mm.configurable) {
+								mm.configurable = defaultConfigurable;
+							}
+							if (undefined === mm.writable) {
+								if (!(("get" in mm) || ("set" in mm))) {
+									mm.writable = defaultWritable;
 								}
-								m = mm;
-							} else if (superWrapAuto && (null != proto) && (key in proto) && ((typeof m.value) === "function")) {
-								mm = {};
-								for (k in m) {
-									mm[k] = m[k];
-								}
-								mm.value = doSuperWrap(m.value, proto[key]);
-								m = mm;
 							}
 						}
 					} else {
-						m = {
+						mm = {
 							configurable: defaultConfigurable,
 							writable: defaultWritable,
 							value: m
 						};
-						if (ctorIsPrivate && (key === ctorName)) {
-							m.enumerable = false;
-						} else if (isPublicFn) {
-							m.enumerable = isPublicFn(key, m.value);
-						} else {
-							m.enumerable = defaultEnumerable;
-						}
-						if (SuperWrapper.isPrototypeOf(m.value)) {
-							if (null == proto) {
-								m.value = m.value.method;
+					}
+					if (null != mm) {
+						if (undefined === mm.enumerable) {
+							if (ctorIsPrivate && (key === ctorName)) {
+								mm.enumerable = false;
+							} else if (isPublicFn) {
+								mm.enumerable = isPublicFn(key, mm.value);
 							} else {
-								m.value = doSuperWrap(m.value.method, proto[key]);
+								mm.enumerable = defaultEnumerable;
 							}
-						} else if (superWrapAuto && (null != proto) && (key in proto) && ((typeof m.value) === "function")) {
-							m.value = doSuperWrap(m.value, proto[key]);
+						}
+						if (SuperWrapMarker.isPrototypeOf(mm.value)) {
+							if (mm.value.wrap) {
+								if (null == proto) {
+									mm.value = mm.value.method;
+								} else {
+									mm.value = doSuperWrap(mm.value.method, proto[key]);
+								}
+							} else {
+								mm.value = mm.value.method;
+							}
+						} else if (superWrapAuto && (null != proto) && (key in proto) && ((typeof mm.value) === "function")) {
+							mm.value = doSuperWrap(mm.value, proto[key]);
 						}
 					}
-					props[key] = m;
+					props[key] = mm;
 				});
 			}
 			o = objectCreate(proto, props);
@@ -429,6 +446,7 @@
 	exports.createCreate = createCreate;
 	exports.Interface = Interface;
 	exports.superWrap = superWrap;
+	exports.noSuperWrap = noSuperWrap;
 	exports.Proto = Proto;
 	exports.isInterfaceOf = isInterfaceOf;
 	exports.createLifecycleHelperDescriptor = createLifecycleHelperDescriptor;
