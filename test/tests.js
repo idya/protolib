@@ -83,18 +83,18 @@ test("superWrap-1", 3, function() {
 	var oo = create(o, {
 		m: proto.superWrap(function(x) {
 			strictEqual(x, "b", "2. level");
-			this._super("m", "a");
+			this._super("a");
 		})
 	});
 	var ooo = create(oo, {
 		m: proto.superWrap(function(x) {
 			strictEqual(x, "c", "3. level");
-			this._superApply("m", [ "b" ]);
+			this._super("b");
 		})
 	});
 	ooo.m("c");
 });
-test("superWrap-2", 5, function() {
+test("superWrap-2", 4, function() {
 	var create = proto.createCreate();
 	var o = create(null, {
 		m: {
@@ -107,7 +107,7 @@ test("superWrap-2", 5, function() {
 		m: {
 			value: proto.superWrap(function(x) {
 				strictEqual(x, "b", "2. level");
-				this._super("m", "a");
+				this._super("a");
 			})
 		}
 	});
@@ -115,19 +115,17 @@ test("superWrap-2", 5, function() {
 		m: {
 			value: proto.superWrap(function(x) {
 				strictEqual(x, "c", "3. level");
-				this._superApply("m", [ "b" ]);
+				this._super("b");
 			})
 		}
 	});
 	oo._super = "x";
-	oo._superApply = "y";
 	ooo.m("c");
 	ok(!Object.prototype.hasOwnProperty.call(ooo, "_super"), "this._super restore");
-	ok(!Object.prototype.hasOwnProperty.call(ooo, "_superApply"), "this._superApply restore");
 });
-test("superWrapAlways-1", 5, function() {
+test("superWrapAuto-1", 4, function() {
 	var create = proto.createCreate({
-		superWrapAlways: true
+		superWrapAuto: true
 	});
 	var o = create(null, {
 		m: function(x) {
@@ -137,22 +135,21 @@ test("superWrapAlways-1", 5, function() {
 	var oo = create(o, {
 		m: proto.superWrap(function(x) {
 			strictEqual(x, "b", "2. level");
-			this._super("m", "a");
+			this._super("a");
 		})
 	});
 	var ooo = create(oo, {
 		m: function(x) {
 			strictEqual(x, "c", "3. level");
-			this._superApply("m", [ "b" ]);
+			this._super("b");
 		}
 	});
 	ooo.m("c");
 	strictEqual(ooo._super, undefined, "this._super restore");
-	strictEqual(ooo._superApply, undefined, "this._superApply restore");
 });
-test("superWrapAlways-2", 5, function() {
+test("superWrapAuto-2", 4, function() {
 	var create = proto.createCreate({
-		superWrapAlways: true
+		superWrapAuto: true
 	});
 	var o = create(null, {
 		m: {
@@ -165,7 +162,7 @@ test("superWrapAlways-2", 5, function() {
 		m: {
 			value: function(x) {
 				strictEqual(x, "b", "2. level");
-				this._super("m", "a");
+				this._super("a");
 			}
 		}
 	});
@@ -173,15 +170,13 @@ test("superWrapAlways-2", 5, function() {
 		m: {
 			value: function(x) {
 				strictEqual(x, "c", "3. level");
-				this._superApply("m", [ "b" ]);
+				this._super("b");
 			}
 		}
 	});
 	ooo._super = "x";
-	ooo._superApply = "y";
 	ooo.m("c");
 	strictEqual(ooo._super, "x", "this._super restore");
-	strictEqual(ooo._superApply, "y", "this._superApply restore");
 });
 test("superException", function() {
 	var create = proto.createCreate();
@@ -196,12 +191,10 @@ test("superException", function() {
 		}
 	});
 	o._super = "x";
-	o._superApply = "y";
 	throws(function() {
 		o.m();
 	}, MyError, "exception");
 	strictEqual(o._super, "x", "this._super restore");
-	strictEqual(o._superApply, "y", "this._superApply restore");
 });
 test("configurable", function() {
 	if (!Object.create) {

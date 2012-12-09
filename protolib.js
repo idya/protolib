@@ -237,9 +237,13 @@
 								for (k in m) {
 									mm[k] = m[k];
 								}
-								mm.value = doSuperWrap(m.value.method, proto[key]);
+								if (null == proto) {
+									mm.value = m.value.method;
+								} else {
+									mm.value = doSuperWrap(m.value.method, proto[key]);
+								}
 								m = mm;
-							} else if (superWrapAuto && (key in proto) && ((typeof m.value) === "function")) {
+							} else if (superWrapAuto && (null != proto) && (key in proto) && ((typeof m.value) === "function")) {
 								mm = {};
 								for (k in m) {
 									mm[k] = m[k];
@@ -262,8 +266,12 @@
 							m.enumerable = defaultEnumerable;
 						}
 						if (SuperWrapper.isPrototypeOf(m.value)) {
-							m.value = doSuperWrap(m.value.method, proto[key]);
-						} else if (superWrapAuto && (key in proto) && ((typeof m.value) === "function")) {
+							if (null == proto) {
+								m.value = m.value.method;
+							} else {
+								m.value = doSuperWrap(m.value.method, proto[key]);
+							}
+						} else if (superWrapAuto && (null != proto) && (key in proto) && ((typeof m.value) === "function")) {
 							m.value = doSuperWrap(m.value, proto[key]);
 						}
 					}
