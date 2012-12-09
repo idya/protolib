@@ -15,12 +15,11 @@
 }(this, function(exports) {
 	"use strict";
 
-	var isPrototypeOf, hasOwnProperty, arraySlice, bind;
+	var isPrototypeOf, hasOwnProperty, bind;
 	var eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapper, Interface, Proto;
 
 	isPrototypeOf = Object.prototype.isPrototypeOf;
 	hasOwnProperty = Object.prototype.hasOwnProperty;
-	arraySlice = Array.prototype.slice;
 
 	(function() {
 		// JScript DontEnum bug workaround
@@ -153,39 +152,22 @@
 		return w;
 	}
 
-	function doSuperWrap(method, proto) {
+	function doSuperWrap(method, _super) {
 		return function() {
-			var noSuperOrig, noSuperApplyOrig, superOrig, superApplyOrig;
+			var orig, noOrig;
 			if (hasOwnProperty.call(this, "_super")) {
-				superOrig = this._super;
+				orig = this._super;
 			} else {
-				noSuperOrig = true;
+				noOrig = true;
 			}
-			if (hasOwnProperty.call(this, "_superApply")) {
-				superApplyOrig = this._superApply;
-			} else {
-				noSuperApplyOrig = true;
-			}
-			this._super = function _super(methodName /* *args */) {
-				var args;
-				args = arraySlice.call(arguments, 1);
-				return proto[methodName].apply(this, args);
-			};
-			this._superApply = function _superApply(methodName, args) {
-				return proto[methodName].apply(this, args);
-			};
+			this._super = _super;
 			try {
 				return method.apply(this, arguments);
 			} finally {
-				if (noSuperOrig) {
+				if (noOrig) {
 					delete this._super;
 				} else {
-					this._super = superOrig;
-				}
-				if (noSuperApplyOrig) {
-					delete this._superApply;
-				} else {
-					this._superApply = superApplyOrig;
+					this._super = orig;
 				}
 			}
 		};
@@ -205,7 +187,7 @@
 	/**
 	 * @option propertyDescriptors
 	 * @option ctorName
-	 * @option superWrapAlways
+	 * @option superWrapAuto
 	 * @option isPublicFn
 	 * @option returnProxy
 	 * @option defaultConfigurable
@@ -215,12 +197,12 @@
 	 * @option shadowedEnumerableFix
 	 */
 	function createCreate(options) {
-		var propertyDescriptors, ctorName, superWrapAlways, isPublicFn, returnProxy;
+		var propertyDescriptors, ctorName, superWrapAuto, isPublicFn, returnProxy;
 		var defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible, shadowedEnumerableFix;
 		options = options || {};
 		propertyDescriptors = options.propertyDescriptors;
 		ctorName = opt(options.ctorName, "constructor");
-		superWrapAlways = opt(options.superWrapAlways, false);
+		superWrapAuto = opt(options.superWrapAuto, false);
 		isPublicFn = options.isPublicFn;
 		returnProxy = opt(options.returnProxy, false);
 		defaultConfigurable = opt(options.defaultConfigurable, true);
@@ -247,31 +229,23 @@
 					if (key === "__proto__") {
 						throw new Error("Invalid member name '" + key + "'");
 					}
-					if (SuperWrapper.isPrototypeOf(m)) {
-						if (superWrapAlways) {
-							m = m.method;
-						} else {
-							m = doSuperWrap(m.method, proto);
-						}
-					}
-					if (propertyDescriptors || ((undefined === propertyDescriptors) && (null != m) && ((typeof m) === "object"))) {
+					if (propertyDescriptors || ((undefined === propertyDescriptors) && (null != m) && ((typeof m) === "object"))
+							&& !SuperWrapper.isPrototypeOf(m)) {
 						if (null != m) {
 							if (SuperWrapper.isPrototypeOf(m.value)) {
 								mm = {};
 								for (k in m) {
 									mm[k] = m[k];
 								}
-								mm.value = doSuperWrap(m.value.method, proto);
+								mm.value = doSuperWrap(m.value.method, proto[key]);
 								m = mm;
-							} else if (superWrapAlways) {
-								if ((typeof m.value) === "function") {
-									mm = {};
-									for (k in m) {
-										mm[k] = m[k];
-									}
-									mm.value = doSuperWrap(m.value, proto);
-									m = mm;
+							} else if (superWrapAuto && (key in proto) && ((typeof m.value) === "function")) {
+								mm = {};
+								for (k in m) {
+									mm[k] = m[k];
 								}
+								mm.value = doSuperWrap(m.value, proto[key]);
+								m = mm;
 							}
 						}
 					} else {
@@ -287,8 +261,10 @@
 						} else {
 							m.enumerable = defaultEnumerable;
 						}
-						if (superWrapAlways && ((typeof m.value) === "function")) {
-							m.value = doSuperWrap(m.value, proto);
+						if (SuperWrapper.isPrototypeOf(m.value)) {
+							m.value = doSuperWrap(m.value.method, proto[key]);
+						} else if (superWrapAuto && (key in proto) && ((typeof m.value) === "function")) {
+							m.value = doSuperWrap(m.value, proto[key]);
 						}
 					}
 					props[key] = m;
