@@ -263,9 +263,6 @@ test("writable", function() {
 	o.m = "y";
 });
 test("enumerable", function() {
-	if (!Object.create) {
-		expect(2);
-	}
 	var create = proto.createCreate();
 	var o = create(null, {
 		m: "x"
@@ -320,4 +317,49 @@ test("propertyDescriptors option", function() {
 		}
 	});
 	strictEqual(o.m.value, "x", "propertyDescriptors: true");
+});
+test("isPublicFn", function() {
+	var create = proto.createCreate({
+		isPublicFn: function(key, m) {
+			return !(key.charAt(0) === "_");
+		}
+	});
+	var o = create(undefined, {
+		publicMember: "x",
+		_privateMember: "y"
+	});
+	ok(o.propertyIsEnumerable("publicMember"), "publicMember");
+	if (Object.create) {
+		ok(!o.propertyIsEnumerable("_privateMember"), "_privateMember");
+	}
+});
+test("ctorIsPrivate", function() {
+	var create = proto.createCreate({
+		isPublicFn: function(key, m) {
+			return !(key.charAt(0) === "_");
+		}
+	});
+	var o = create(undefined, {
+		constructor: "z"
+	});
+	ok(!o.propertyIsEnumerable("constructor"), "isPublicFn");
+	create = proto.createCreate({
+		isPublicFn: function(key, m) {
+			return !(key.charAt(0) === "_");
+		},
+		ctorIsPrivate: false
+	});
+	o = create(undefined, {
+		constructor: "z"
+	});
+	if (Object.create) {
+		ok(o.propertyIsEnumerable("constructor"), "ctorIsPrivate: false");
+	}
+	create = proto.createCreate({});
+	o = create(undefined, {
+		constructor: "z"
+	});
+	if (Object.create) {
+		ok(o.propertyIsEnumerable("constructor"), "default");
+	}
 });
