@@ -506,5 +506,84 @@ test("isInterfaceOf, Proto", function() {
 	ok(proto.isInterfaceOf(o, pp), "pp instance");
 });
 test("null descriptor", function() {
-
+	var o;
+	var create = proto.createCreate({
+		propertyDescriptors: true
+	});
+	throws(function() {
+		o = create(null, {
+			m: null
+		});
+	});
+	create = proto.createCreate({});
+	o = create(null, {
+		m: null
+	});
+});
+test("JScript DontEnum bug", function() {
+	var create = proto.createCreate({});
+	var o = create(null, {
+		constructor: "x",
+		toString: "y"
+	});
+	strictEqual(o.constructor, "x", "constructor");
+	strictEqual(o.toString, "y", "toString");
+});
+test("shadowedEnumerableBug", function() {
+	if (Object.create) {
+		var isPublic = function(key, m) {
+			return !(key.charAt(0) === "_");
+		};
+		var inherit = proto.createCreate({
+			isPublicFn: isPublic
+		});
+		var p = inherit(undefined, {
+			m: function() {
+			}
+		});
+		var pp = inherit(p, {
+			m: {
+				enumerable: false,
+				value: function() {
+				}
+			}
+		});
+		var newInstance = proto.createCreate({
+			isPublicFn: isPublic,
+			returnInterface: true,
+			shadowedEnumerableFix: true
+		});
+		var o = newInstance(p);
+		o.m();
+		var oo = newInstance(pp);
+		strictEqual(oo.m, undefined, "private");
+	} else {
+		expect(0);
+	}
+});
+test("lifecycle", 2, function() {
+	var create = proto.createCreate();
+	var Base = create(proto.Proto, proto.createLifecycleHelperDescriptor());
+	var p = create(Base, {
+		_init: function(x) {
+			this._a = x * 3;
+		},
+		get: function() {
+			return this._a;
+		},
+		_dispose: function(x) {
+			strictEqual(this._a, 0, "deinit");
+		}
+	});
+	var pp = create(p, {
+		_init: function(x) {
+			this._a = this._a + 5;
+		},
+		_dispose: function(x) {
+			this._a = 0;
+		}
+	});
+	var o = create(pp, undefined, undefined, [ 4 ]);
+	strictEqual(o.get(), 17, "init");
+	o.destroy();
 });
