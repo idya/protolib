@@ -224,7 +224,7 @@
 		defaultExtensible = opt(options.defaultExtensible, true);
 		shadowedEnumerableFix = opt(options.shadowedEnumerableFix, false);
 		return function(proto, members, extensible, ctorArgs) {
-			var props, o, iface;
+			var props, o, iface, ctor;
 			if (undefined === proto) {
 				proto = Object.prototype;
 			}
@@ -348,7 +348,10 @@
 				o.iface = iface;
 			}
 			if (ctorArgs) {
-				o[ctorName].apply(o, ctorArgs);
+				ctor = o[ctorName];
+				if ((ctorArgs.length > 0) || ((typeof ctor) === "function")) {
+					ctor.apply(o, ctorArgs);
+				}
 			}
 			if (!extensible) {
 				preventExtensions(o);
@@ -395,7 +398,7 @@
 		d[ctorName] = {
 			value: function() {
 				var a, o, i, fn;
-				this._destroyFns = [];
+				this._finalizers = [];
 				a = [];
 				o = this;
 				for (;;) {
@@ -407,10 +410,10 @@
 				}
 				for (i = a.length - 1; i >= 0; i--) {
 					o = a[i];
-					if (hasOwnProperty.call(o, "_dispose")) {
-						fn = o._dispose;
+					if (hasOwnProperty.call(o, "_deinit")) {
+						fn = o._deinit;
 						if ((typeof fn) === "function") {
-							this._addDestroyFn(fn);
+							this._onFinalize(fn);
 						}
 					}
 					if (hasOwnProperty.call(o, "_init")) {
@@ -422,20 +425,20 @@
 				}
 			}
 		};
-		d._addDestroyFn = {
-			value: function _addDestroyFn(fn) {
-				this._destroyFns.push(fn);
+		d._onFinalize = {
+			value: function _onFinalize(fn) {
+				this._finalizers.push(fn);
 			}
 		};
-		d.destroy = {
+		d.finalize = {
 			enumerable: true,
-			value: function destroy() {
+			value: function finalize() {
 				var i, dfns;
-				dfns = this._destroyFns;
+				dfns = this._finalizers;
 				for (i = dfns.length - 1; i >= 0; i--) {
 					dfns[i].call(this);
 				}
-				delete this._destroyFns;
+				delete this._finalizers;
 			}
 		};
 		return d;

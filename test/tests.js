@@ -32,6 +32,11 @@ test("default ctor", 2, function() {
 	}, undefined, [ "x" ]);
 	var oo = create(o, undefined, undefined, [ "x" ]);
 });
+test("no ctor", 0, function() {
+	var create = proto.createObjectFactory();
+	var o = create(null, undefined, undefined, []);
+	var oo = create(o, undefined, undefined, []);
+});
 test("named ctor", 2, function() {
 	var create = proto.createObjectFactory({
 		ctorName: "_create"
@@ -571,7 +576,7 @@ test("lifecycle", 2, function() {
 		get: function() {
 			return this._a;
 		},
-		_dispose: function(x) {
+		_deinit: function(x) {
 			strictEqual(this._a, 0, "deinit");
 		}
 	});
@@ -579,11 +584,11 @@ test("lifecycle", 2, function() {
 		_init: function(x) {
 			this._a = this._a + 5;
 		},
-		_dispose: function(x) {
+		_deinit: function(x) {
 			this._a = 0;
 		}
 	});
 	var o = create(pp, undefined, undefined, [ 4 ]);
 	strictEqual(o.get(), 17, "init");
-	o.destroy();
+	o.finalize();
 });
