@@ -1,7 +1,7 @@
 "use strict";
 
 test("property inheritance", function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null, {
 		a: 1,
 		b: 2
@@ -15,7 +15,7 @@ test("property inheritance", function() {
 	strictEqual(oo.c, 8, "new property");
 });
 test("getPrototypeOf", function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(undefined);
 	strictEqual(proto.getPrototypeOf(o), Object.prototype, "null prototype");
 	var o = create(null);
@@ -24,7 +24,7 @@ test("getPrototypeOf", function() {
 	strictEqual(proto.getPrototypeOf(oo), o, "non-null prototype");
 });
 test("default ctor", 2, function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null, {
 		constructor: function(p) {
 			strictEqual(p, "x", "constructor param");
@@ -33,7 +33,7 @@ test("default ctor", 2, function() {
 	var oo = create(o, undefined, undefined, [ "x" ]);
 });
 test("named ctor", 2, function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		ctorName: "_create"
 	});
 	var o = create(null, {
@@ -44,11 +44,11 @@ test("named ctor", 2, function() {
 	var oo = create(o, undefined, undefined, [ "x" ]);
 });
 test("extensible", function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null);
 	o.a = true;
 	ok(true, "defaults");
-	create = proto.createCreate({
+	create = proto.createObjectFactory({
 		defaultExtensible: false
 	});
 	o = create(null, undefined, true);
@@ -57,14 +57,14 @@ test("extensible", function() {
 });
 test("unextensible", function() {
 	if (Object.preventExtensions) {
-		var create = proto.createCreate({
+		var create = proto.createObjectFactory({
 			defaultExtensible: false
 		});
 		var o = create(null);
 		throws(function() {
 			o.a = true;
 		}, "defaultExtensible=false");
-		create = proto.createCreate();
+		create = proto.createObjectFactory();
 		o = create(null, undefined, false);
 		throws(function() {
 			o.a = true;
@@ -74,7 +74,7 @@ test("unextensible", function() {
 	}
 });
 test("superWrap-1", 3, function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null, {
 		m: proto.superWrap(function(x) {
 			strictEqual(x, "a", "1. level");
@@ -95,7 +95,7 @@ test("superWrap-1", 3, function() {
 	ooo.m("c");
 });
 test("superWrap-2", 4, function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null, {
 		m: {
 			value: proto.superWrap(function(x) {
@@ -124,7 +124,7 @@ test("superWrap-2", 4, function() {
 	ok(!Object.prototype.hasOwnProperty.call(ooo, "_super"), "this._super restore");
 });
 test("superWrapAuto-1", 4, function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		superWrapAuto: true
 	});
 	var o = create(null, {
@@ -148,7 +148,7 @@ test("superWrapAuto-1", 4, function() {
 	strictEqual(ooo._super, undefined, "this._super restore");
 });
 test("superWrapAuto-2", 4, function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		superWrapAuto: true
 	});
 	var o = create(null, {
@@ -180,7 +180,7 @@ test("superWrapAuto-2", 4, function() {
 });
 test("superWrap > superWrap", function() {
 	var s = 0;
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		superWrapAuto: true
 	});
 	var o = create(null, {
@@ -205,7 +205,7 @@ test("superWrap > superWrap", function() {
 	strictEqual(s, 355);
 });
 test("superException", function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var MyError = function() {
 	};
 	MyError.prototype = Error.prototype;
@@ -223,7 +223,7 @@ test("superException", function() {
 	strictEqual(o._super, "x", "this._super restore");
 });
 test("noSuperWrap", function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		superWrapAuto: true
 	});
 	var o = create(null, {
@@ -249,7 +249,7 @@ test("configurable", function() {
 	if (!Object.create) {
 		expect(0);
 	}
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null, {
 		m: "x"
 	});
@@ -258,7 +258,7 @@ test("configurable", function() {
 			enumerable: false
 		});
 	}
-	create = proto.createCreate({
+	create = proto.createObjectFactory({
 		defaultConfigurable: false
 	});
 	o = create(null, {
@@ -287,12 +287,12 @@ test("writable", function() {
 	if (!Object.create) {
 		expect(0);
 	}
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null, {
 		m: "x"
 	});
 	o.x = "y";
-	create = proto.createCreate({
+	create = proto.createObjectFactory({
 		defaultWritable: false
 	});
 	o = create(null, {
@@ -312,12 +312,12 @@ test("writable", function() {
 	o.m = "y";
 });
 test("enumerable", function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var o = create(null, {
 		m: "x"
 	});
 	ok(Object.prototype.propertyIsEnumerable.call(o, "m"), "defaults");
-	create = proto.createCreate({
+	create = proto.createObjectFactory({
 		defaultEnumerable: false
 	});
 	o = create(null, {
@@ -335,7 +335,7 @@ test("enumerable", function() {
 	ok(Object.prototype.propertyIsEnumerable.call(o, "m"), "enumerable: true");
 });
 test("__proto__ member", function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var d = {};
 	d.__proto__ = "x";
 	if (d.propertyIsEnumerable("__proto__")) {
@@ -348,7 +348,7 @@ test("__proto__ member", function() {
 	}
 });
 test("propertyDescriptors option", function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		propertyDescriptors: true
 	});
 	var o = create(null, {
@@ -357,7 +357,7 @@ test("propertyDescriptors option", function() {
 		}
 	});
 	strictEqual(o.m, "x", "propertyDescriptors: true");
-	create = proto.createCreate({
+	create = proto.createObjectFactory({
 		propertyDescriptors: false
 	});
 	o = create(null, {
@@ -368,7 +368,7 @@ test("propertyDescriptors option", function() {
 	strictEqual(o.m.value, "x", "propertyDescriptors: true");
 });
 test("isPublicFn", function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		isPublicFn: function(key, m) {
 			return !(key.charAt(0) === "_");
 		}
@@ -383,7 +383,7 @@ test("isPublicFn", function() {
 	}
 });
 test("ctorIsPrivate", function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		isPublicFn: function(key, m) {
 			return !(key.charAt(0) === "_");
 		}
@@ -392,7 +392,7 @@ test("ctorIsPrivate", function() {
 		constructor: "z"
 	});
 	ok(!o.propertyIsEnumerable("constructor"), "isPublicFn");
-	create = proto.createCreate({
+	create = proto.createObjectFactory({
 		isPublicFn: function(key, m) {
 			return !(key.charAt(0) === "_");
 		},
@@ -404,7 +404,7 @@ test("ctorIsPrivate", function() {
 	if (Object.create) {
 		ok(o.propertyIsEnumerable("constructor"), "ctorIsPrivate: false");
 	}
-	create = proto.createCreate({});
+	create = proto.createObjectFactory({});
 	o = create(undefined, {
 		constructor: "z"
 	});
@@ -413,7 +413,7 @@ test("ctorIsPrivate", function() {
 	}
 });
 test("returnInterface methods", function() {
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		returnInterface: true,
 		isPublicFn: function(key, m) {
 			return !(key.charAt(0) === "_");
@@ -433,7 +433,7 @@ test("returnInterface methods", function() {
 });
 test("returnInterface properties", function() {
 	if (Object.create) {
-		var create = proto.createCreate({
+		var create = proto.createObjectFactory({
 			returnInterface: true,
 			isPublicFn: function(key, m) {
 				return !(key.charAt(0) === "_");
@@ -489,10 +489,10 @@ test("isInterfaceOf, Proto", function() {
 	var isPublic = function(key, m) {
 		return !(key.charAt(0) === "_");
 	};
-	var inherit = proto.createCreate({
+	var inherit = proto.createObjectFactory({
 		isPublicFn: isPublic
 	});
-	var newInstance = proto.createCreate({
+	var newInstance = proto.createObjectFactory({
 		returnInterface: true,
 		isPublicFn: isPublic
 	});
@@ -507,7 +507,7 @@ test("isInterfaceOf, Proto", function() {
 });
 test("null descriptor", function() {
 	var o;
-	var create = proto.createCreate({
+	var create = proto.createObjectFactory({
 		propertyDescriptors: true
 	});
 	throws(function() {
@@ -515,13 +515,13 @@ test("null descriptor", function() {
 			m: null
 		});
 	});
-	create = proto.createCreate({});
+	create = proto.createObjectFactory({});
 	o = create(null, {
 		m: null
 	});
 });
 test("JScript DontEnum bug", function() {
-	var create = proto.createCreate({});
+	var create = proto.createObjectFactory({});
 	var o = create(null, {
 		constructor: "x",
 		toString: "y"
@@ -534,7 +534,7 @@ test("shadowedEnumerableBug", function() {
 		var isPublic = function(key, m) {
 			return !(key.charAt(0) === "_");
 		};
-		var inherit = proto.createCreate({
+		var inherit = proto.createObjectFactory({
 			isPublicFn: isPublic
 		});
 		var p = inherit(undefined, {
@@ -548,7 +548,7 @@ test("shadowedEnumerableBug", function() {
 				}
 			}
 		});
-		var newInstance = proto.createCreate({
+		var newInstance = proto.createObjectFactory({
 			isPublicFn: isPublic,
 			returnInterface: true,
 			shadowedEnumerableFix: true
@@ -562,7 +562,7 @@ test("shadowedEnumerableBug", function() {
 	}
 });
 test("lifecycle", 2, function() {
-	var create = proto.createCreate();
+	var create = proto.createObjectFactory();
 	var Base = create(proto.Proto, proto.createLifecycleHelperDescriptor());
 	var p = create(Base, {
 		_init: function(x) {

@@ -208,7 +208,7 @@
 	 * @option defaultExtensible
 	 * @option shadowedEnumerableFix
 	 */
-	function createCreate(options) {
+	function createObjectFactory(options) {
 		var propertyDescriptors, ctorName, superWrapAuto, isPublicFn, ctorIsPrivate, returnInterface;
 		var defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible, shadowedEnumerableFix;
 		options = options || {};
@@ -444,7 +444,7 @@
 	// exports:
 
 	exports.getPrototypeOf = getPrototypeOf;
-	exports.createCreate = createCreate;
+	exports.createObjectFactory = createObjectFactory;
 	exports.Interface = Interface;
 	exports.superWrap = superWrap;
 	exports.noSuperWrap = noSuperWrap;
