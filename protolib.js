@@ -438,6 +438,7 @@
 				delete this._destroyFns;
 			}
 		};
+		return d;
 	}
 
 	// exports:
