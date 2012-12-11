@@ -385,8 +385,7 @@
 			superWrapAuto: options.superWrapAuto,
 			defaultConfigurable: options.defaultConfigurable,
 			defaultEnumerable: options.defaultEnumerable,
-			defaultWritable: options.defaultWritable,
-			defaultExtensible: false
+			defaultWritable: options.defaultWritable
 		};
 		create = createObjectFactory(opts);
 		members = {};
