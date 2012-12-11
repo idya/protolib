@@ -16,7 +16,7 @@
 	"use strict";
 
 	var isPrototypeOf, hasOwnProperty, propertyDescriptorKeys, bind;
-	var eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapMarker, Interface, Proto;
+	var eachOwn, shadowedEnumerableBug, objectCreate, preventExtensions, getPrototypeOf, SuperWrapMarker, Interface;
 
 	isPrototypeOf = Object.prototype.isPrototypeOf;
 	hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -364,20 +364,115 @@
 		};
 	}
 
-	Proto = objectCreate(Object.prototype, {
-		constructor: {
-			value: function ProtoCtor() {
-			}
-		},
-		hasPrototype: {
-			enumerable: true,
-			value: function hasPrototype(o) {
-				return isPrototypeOf.call(o, this);
-			}
+	/**
+	 * @option addLifecycleSupport
+	 * @option proto
+	 * @option extensible
+	 * @option ctorName
+	 * @option superWrapAuto
+	 */
+	function createBase(options, customMembers) {
+		var addLifecycleSupport, ctorName, opts, create, members, base;
+		options = options || {};
+		addLifecycleSupport = opt(options.addLifecycleSupport, false);
+		ctorName = opt(options.ctorName, "constructor");
+		opts = {
+			propertyDescriptors: true,
+			ctorName: ctorName,
+			superWrapAuto: options.superWrapAuto,
+			defaultConfigurable: false,
+			defaultEnumerable: false,
+			defaultWritable: false,
+			defaultExtensible: true
+		};
+		create = createObjectFactory(opts);
+		members = {};
+		if (ctorName === "constructor") {
+			members.constructor = {
+				configurable: false,
+				enumerable: false,
+				writable: false,
+				value: function BaseCtor() {
+				}
+			};
 		}
-	});
-	preventExtensions(Proto);
-	Proto.constructor.prototype = Proto;
+		if (options.proto && (typeof options.proto.hasPrototype) !== "function") {
+			members.hasPrototype = {
+				configurable: false,
+				enumerable: true,
+				writable: false,
+				value: function hasPrototype(o) {
+					return isPrototypeOf.call(o, this);
+				}
+			};
+		}
+		if (addLifecycleSupport) {
+			members[ctorName] = {
+				configurable: false,
+				enumerable: false,
+				writable: false,
+				value: function() {
+					var a, o, i, fn;
+					this._finalizers = [];
+					a = [];
+					o = this;
+					for (;;) {
+						o = getPrototypeOf(o);
+						if (!o) {
+							break;
+						}
+						a.push(o);
+					}
+					for (i = a.length - 1; i >= 0; i--) {
+						o = a[i];
+						if (hasOwnProperty.call(o, "_deinit")) {
+							fn = o._deinit;
+							if ((typeof fn) === "function") {
+								this._registerFinalizer(fn);
+							}
+						}
+						if (hasOwnProperty.call(o, "_init")) {
+							fn = o._init;
+							if ((typeof fn) === "function") {
+								fn.apply(this, arguments);
+							}
+						}
+					}
+				}
+			};
+			members._registerFinalizer = {
+				configurable: false,
+				enumerable: false,
+				writable: false,
+				value: function _registerFinalizer(fn) {
+					this._finalizers.push(fn);
+				}
+			};
+			members.finalize = {
+				configurable: false,
+				enumerable: true,
+				writable: false,
+				value: function finalize() {
+					var i, fs;
+					fs = this._finalizers;
+					for (i = fs.length - 1; i >= 0; i--) {
+						fs[i].call(this);
+					}
+					delete this._finalizers;
+				}
+			};
+		}
+		if (null != customMembers) {
+			eachOwn(customMembers, function(m, key) {
+				members[key] = m;
+			});
+		}
+		base = create(options.proto, members, options.extensible);
+		if (base.hasOwnProperty("constructor") && ((typeof base.constructor) === "function")) {
+			base.constructor.prototype = base;
+		}
+		return base;
+	}
 
 	function isInterfaceOf(o, proto) {
 		if ((o === proto) || isPrototypeOf.call(proto, o)) {
@@ -391,67 +486,13 @@
 		}
 	}
 
-	function createLifecycleHelperDescriptor(ctorName) {
-		var d;
-		ctorName = opt(ctorName, "constructor");
-		d = {};
-		d[ctorName] = {
-			value: function() {
-				var a, o, i, fn;
-				this._finalizers = [];
-				a = [];
-				o = this;
-				for (;;) {
-					o = getPrototypeOf(o);
-					if (!o) {
-						break;
-					}
-					a.push(o);
-				}
-				for (i = a.length - 1; i >= 0; i--) {
-					o = a[i];
-					if (hasOwnProperty.call(o, "_deinit")) {
-						fn = o._deinit;
-						if ((typeof fn) === "function") {
-							this._onFinalize(fn);
-						}
-					}
-					if (hasOwnProperty.call(o, "_init")) {
-						fn = o._init;
-						if ((typeof fn) === "function") {
-							fn.apply(this, arguments);
-						}
-					}
-				}
-			}
-		};
-		d._onFinalize = {
-			value: function _onFinalize(fn) {
-				this._finalizers.push(fn);
-			}
-		};
-		d.finalize = {
-			enumerable: true,
-			value: function finalize() {
-				var i, dfns;
-				dfns = this._finalizers;
-				for (i = dfns.length - 1; i >= 0; i--) {
-					dfns[i].call(this);
-				}
-				delete this._finalizers;
-			}
-		};
-		return d;
-	}
-
 	// exports:
 
 	exports.getPrototypeOf = getPrototypeOf;
-	exports.createObjectFactory = createObjectFactory;
-	exports.Interface = Interface;
 	exports.superWrap = superWrap;
 	exports.noSuperWrap = noSuperWrap;
-	exports.Proto = Proto;
+	exports.Interface = Interface;
+	exports.createObjectFactory = createObjectFactory;
+	exports.createBase = createBase;
 	exports.isInterfaceOf = isInterfaceOf;
-	exports.createLifecycleHelperDescriptor = createLifecycleHelperDescriptor;
 }));
