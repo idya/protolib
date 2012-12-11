@@ -490,7 +490,7 @@ test("returnInterface properties", function() {
 		expect(0);
 	}
 });
-test("isInterfaceOf, Proto", function() {
+test("isInterfaceOf, Base", function() {
 	var isPublic = function(key, m) {
 		return !(key.charAt(0) === "_");
 	};
@@ -501,7 +501,8 @@ test("isInterfaceOf, Proto", function() {
 		returnInterface: true,
 		isPublicFn: isPublic
 	});
-	var p = inherit(proto.Proto, {});
+	var Base = proto.createBase();
+	var p = inherit(Base, {});
 	var pp = inherit(p, {});
 	var o = newInstance(pp, undefined, undefined, []);
 	ok(proto.isInterfaceOf(o, p), "p interface");
@@ -568,7 +569,9 @@ test("shadowedEnumerableBug", function() {
 });
 test("lifecycle", 2, function() {
 	var create = proto.createObjectFactory();
-	var Base = create(proto.Proto, proto.createLifecycleHelperDescriptor());
+	var Base = proto.createBase({
+		addLifecycleSupport: true
+	});
 	var p = create(Base, {
 		_init: function(x) {
 			this._a = x * 3;

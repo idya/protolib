@@ -370,6 +370,9 @@
 	 * @option extensible
 	 * @option ctorName
 	 * @option superWrapAuto
+	 * @option defaultConfigurable
+	 * @option defaultEnumerable
+	 * @option defaultWritable
 	 */
 	function createBase(options, customMembers) {
 		var addLifecycleSupport, ctorName, opts, create, members, base;
@@ -377,13 +380,13 @@
 		addLifecycleSupport = opt(options.addLifecycleSupport, false);
 		ctorName = opt(options.ctorName, "constructor");
 		opts = {
-			propertyDescriptors: true,
+			propertyDescriptors: undefined,
 			ctorName: ctorName,
 			superWrapAuto: options.superWrapAuto,
-			defaultConfigurable: false,
-			defaultEnumerable: false,
-			defaultWritable: false,
-			defaultExtensible: true
+			defaultConfigurable: options.defaultConfigurable,
+			defaultEnumerable: options.defaultEnumerable,
+			defaultWritable: options.defaultWritable,
+			defaultExtensible: false
 		};
 		create = createObjectFactory(opts);
 		members = {};
@@ -396,7 +399,7 @@
 				}
 			};
 		}
-		if (options.proto && (typeof options.proto.hasPrototype) !== "function") {
+		if ((!options.proto) || ((typeof options.proto.hasPrototype) !== "function")) {
 			members.hasPrototype = {
 				configurable: false,
 				enumerable: true,
