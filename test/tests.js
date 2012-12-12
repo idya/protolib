@@ -23,27 +23,27 @@ test("getPrototypeOf", function() {
 	var oo = create(o);
 	strictEqual(proto.getPrototypeOf(oo), o, "non-null prototype");
 });
-test("default ctor", 2, function() {
+test("default initializer", 2, function() {
 	var create = proto.createObjectFactory();
 	var o = create(null, {
 		constructor: function(p) {
-			strictEqual(p, "x", "constructor param");
+			strictEqual(p, "x", "initializer param");
 		}
 	}, undefined, [ "x" ]);
 	var oo = create(o, undefined, undefined, [ "x" ]);
 });
-test("no ctor", 0, function() {
+test("no initializer", 0, function() {
 	var create = proto.createObjectFactory();
 	var o = create(null, undefined, undefined, []);
 	var oo = create(o, undefined, undefined, []);
 });
-test("named ctor", 2, function() {
+test("named initializer", 2, function() {
 	var create = proto.createObjectFactory({
-		ctorName: "_create"
+		initializerName: "_create"
 	});
 	var o = create(null, {
 		_create: function(p) {
-			strictEqual(p, "x", "constructor param");
+			strictEqual(p, "x", "initializer param");
 		}
 	}, undefined, [ "x" ]);
 	var oo = create(o, undefined, undefined, [ "x" ]);
@@ -387,7 +387,7 @@ test("isPublicFn", function() {
 		ok(!o.propertyIsEnumerable("_privateMember"), "_privateMember");
 	}
 });
-test("ctorIsPrivate", function() {
+test("initializerIsPrivate", function() {
 	var create = proto.createObjectFactory({
 		isPublicFn: function(key, m) {
 			return !(key.charAt(0) === "_");
@@ -401,13 +401,13 @@ test("ctorIsPrivate", function() {
 		isPublicFn: function(key, m) {
 			return !(key.charAt(0) === "_");
 		},
-		ctorIsPrivate: false
+		initializerIsPrivate: false
 	});
 	o = create(undefined, {
 		constructor: "z"
 	});
 	if (Object.create) {
-		ok(o.propertyIsEnumerable("constructor"), "ctorIsPrivate: false");
+		ok(o.propertyIsEnumerable("constructor"), "initializerIsPrivate: false");
 	}
 	create = proto.createObjectFactory({});
 	o = create(undefined, {

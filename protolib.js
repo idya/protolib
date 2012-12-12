@@ -197,10 +197,10 @@
 
 	/**
 	 * @option propertyDescriptors
-	 * @option ctorName
+	 * @option initializerName
 	 * @option superWrapAuto
 	 * @option isPublicFn
-	 * @option ctorIsPrivate
+	 * @option initializerIsPrivate
 	 * @option returnInterface
 	 * @option defaultConfigurable
 	 * @option defaultEnumerable
@@ -209,22 +209,22 @@
 	 * @option shadowedEnumerableFix
 	 */
 	function createObjectFactory(options) {
-		var propertyDescriptors, ctorName, superWrapAuto, isPublicFn, ctorIsPrivate, returnInterface;
+		var propertyDescriptors, initializerName, superWrapAuto, isPublicFn, initializerIsPrivate, returnInterface;
 		var defaultConfigurable, defaultEnumerable, defaultWritable, defaultExtensible, shadowedEnumerableFix;
 		options = options || {};
 		propertyDescriptors = options.propertyDescriptors;
-		ctorName = opt(options.ctorName, "constructor");
+		initializerName = opt(options.initializerName, "constructor");
 		superWrapAuto = opt(options.superWrapAuto, false);
 		isPublicFn = options.isPublicFn;
-		ctorIsPrivate = opt(options.ctorIsPrivate, Boolean(isPublicFn));
+		initializerIsPrivate = opt(options.initializerIsPrivate, Boolean(isPublicFn));
 		returnInterface = opt(options.returnInterface, false);
 		defaultConfigurable = opt(options.defaultConfigurable, true);
 		defaultEnumerable = opt(options.defaultEnumerable, true);
 		defaultWritable = opt(options.defaultWritable, true);
 		defaultExtensible = opt(options.defaultExtensible, true);
 		shadowedEnumerableFix = opt(options.shadowedEnumerableFix, false);
-		return function(proto, members, extensible, ctorArgs) {
-			var props, o, iface, ctor;
+		return function(proto, members, extensible, initializerArgs) {
+			var props, o, iface, initializer;
 			if (undefined === proto) {
 				proto = Object.prototype;
 			}
@@ -273,7 +273,7 @@
 					}
 					if (null != mm) {
 						if (undefined === mm.enumerable) {
-							if (ctorIsPrivate && (key === ctorName)) {
+							if (initializerIsPrivate && (key === initializerName)) {
 								mm.enumerable = false;
 							} else if (isPublicFn) {
 								mm.enumerable = isPublicFn(key, mm.value);
@@ -335,7 +335,7 @@
 				} else { // pre-ES5
 					each(o, function(m, key) {
 						// XXX JScript DontEnum bug
-						if (((typeof m) === "function") && (!(ctorIsPrivate && (key === ctorName))) && (key !== "__proto__")
+						if (((typeof m) === "function") && (!(initializerIsPrivate && (key === initializerName))) && (key !== "__proto__")
 								&& ((isPublicFn && isPublicFn(key, m)) || ((!isPublicFn) && defaultEnumerable))) {
 							props[key] = {
 								value: bind.call(m, o)
@@ -347,10 +347,10 @@
 				preventExtensions(iface);
 				o.iface = iface;
 			}
-			if (ctorArgs) {
-				ctor = o[ctorName];
-				if ((ctorArgs.length > 0) || ((typeof ctor) === "function")) {
-					ctor.apply(o, ctorArgs);
+			if (initializerArgs) {
+				initializer = o[initializerName];
+				if ((initializerArgs.length > 0) || ((typeof initializer) === "function")) {
+					initializer.apply(o, initializerArgs);
 				}
 			}
 			if (!extensible) {
@@ -368,20 +368,20 @@
 	 * @option addLifecycleSupport
 	 * @option proto
 	 * @option extensible
-	 * @option ctorName
+	 * @option initializerName
 	 * @option superWrapAuto
 	 * @option defaultConfigurable
 	 * @option defaultEnumerable
 	 * @option defaultWritable
 	 */
 	function createBase(options, customMembers) {
-		var addLifecycleSupport, ctorName, opts, create, members, base;
+		var addLifecycleSupport, initializerName, opts, create, members, base;
 		options = options || {};
 		addLifecycleSupport = opt(options.addLifecycleSupport, false);
-		ctorName = opt(options.ctorName, "constructor");
+		initializerName = opt(options.initializerName, "constructor");
 		opts = {
 			propertyDescriptors: undefined,
-			ctorName: ctorName,
+			initializerName: initializerName,
 			superWrapAuto: options.superWrapAuto,
 			defaultConfigurable: options.defaultConfigurable,
 			defaultEnumerable: options.defaultEnumerable,
@@ -389,7 +389,7 @@
 		};
 		create = createObjectFactory(opts);
 		members = {};
-		if (ctorName === "constructor") {
+		if (initializerName === "constructor") {
 			members.constructor = {
 				configurable: false,
 				enumerable: false,
@@ -409,7 +409,7 @@
 			};
 		}
 		if (addLifecycleSupport) {
-			members[ctorName] = {
+			members[initializerName] = {
 				configurable: false,
 				enumerable: false,
 				writable: false,
